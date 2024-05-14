@@ -7,7 +7,7 @@ Welcome to my repository of projects completed as part of the Yandex.Practicum. 
 ### Data Science Projects
 | Description | Technologies |
 |-------------|--------------|
-| Projects focused on developing high-performance machine learning models and algorithms in the domains of NLP, Computer Vision, Speech Processing, and Tabular Data. These projects emphasize data analysis, preprocessing, model training, and evaluation. | Python, Pandas, NumPy, Matplotlib, Sklearn, TensorFlow, Keras |
+| Projects focused on developing high-performance machine learning models and algorithms in the domains of NLP, Computer Vision, Speech Processing, and Tabular Data. These projects emphasize data analysis, preprocessing, model training, and evaluation. | Python, Pandas, NumPy, Matplotlib, Seaborn, Scikit-Learn, TensorFlow, Keras, PyTorch, NLTK, SpaCy, OpenCV, SQL, Jupyter, Google Colab, Plotly, XGBoost, LightGBM, PySpark, Dask, Hugging Face Transformers, Sentence Transformers |
 
 ### C++ Development Projects
 | Description | Technologies |
