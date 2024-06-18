@@ -4,3 +4,4 @@ migrations/
 media/
 cert.crt
 cert.key
+.venv
