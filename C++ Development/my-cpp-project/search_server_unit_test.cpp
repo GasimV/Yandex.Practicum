@@ -309,6 +309,34 @@ void TestExcludeStopWordsFromAddedDocumentContent() {
 Разместите код остальных тестов здесь
 */
 
+// Функция для проверки добавления документов в SearchServer
+void TestAddingDocuments() {
+    // Шаг 1: Создание экземпляра SearchServer
+    SearchServer server;
+
+    // Шаг 2: Определение идентификатора и содержимого документа
+    const int doc_id = 1;
+    const string document_content = "cat sat on the mat";
+    const vector<int> document_ratings = {5, 3, 4};
+
+    // Шаг 3: Добавление документа на сервер
+    {
+        SearchServer server;
+        server.AddDocument(doc_id, document_content, DocumentStatus::ACTUAL, document_ratings);
+
+        // Шаг 4: Поиск документа с помощью запроса, соответствующего содержанию
+        string search_query = "cat";
+        const auto result = server.FindTopDocuments(search_query);
+
+        // Шаг 5: Утверждаем (assert), что результат содержит ровно один документ
+        ASSERT_EQUAL(result.size(), 1u);
+
+        // Шаг 6. Подтверждаем, что возвращенный идентификатор документа соответствует идентификатору добавленного документа
+        const Document& doc0 = result[0];
+        ASSERT_EQUAL(doc0.id, doc_id);
+    }
+
+}
 
 // Функция TestSearchServer является точкой входа для запуска тестов
 void TestSearchServer() {
