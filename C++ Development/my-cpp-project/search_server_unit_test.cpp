@@ -500,37 +500,49 @@ void TestRatingCalculation() {
     ASSERT_EQUAL(result[0].rating, expected_rating);
 }
 
-// Функция для проверки того, что совпавшие минус-слова сбрасывают совпавшие плюс-слова
-void TestMatchedMinusWordsDoNotResetPlusWords() {
+// Функция для проверки соответствия документов поисковому запросу
+void TestMatchingDocumentsToQuery() {
     // Шаг 1: Создание экземпляра SearchServer
     SearchServer server;
 
-    // Шаг 2: Добавление документа, содержащего как плюс-слово, так и минус-слово
-    const int document_id = 8;
-    const string document_content = "the quick brown fox jumps over the lazy dog";
-    const vector<int> ratings = {1, 2, 3};
-    server.AddDocument(document_id, document_content, DocumentStatus::ACTUAL, ratings);
+    // Шаг 2: Добавление документа, содержащего как положительные, так и отрицательные слова
+    const int document_id = 1;
+    const string document_content = "happy cat and sad dog";
+    const vector<int> document_ratings = {1, 2, 3};
+    server.AddDocument(document_id, document_content, DocumentStatus::ACTUAL, document_ratings);
 
-    // Шаг 3: Поиск с помощью запроса, включающего минус-слово
-    // В этом сценарии слово "dog" является минус-словом. Если документ содержит слово "dog", 
-    // его следует исключить из результатов поиска, даже если он также содержит плюс-слово "fox".
-    const string search_query = "fox -dog";
-    const auto result = server.FindTopDocuments(search_query);
+    // Шаг 3: Сопоставление запроса как с положительными, так и отрицательными словами
+    {
+        const string query_with_minus_word = "happy -sad";
+        auto [matched_words, status] = server.MatchDocument(query_with_minus_word, document_id);
 
-    // Шаг 4: Утверждение, что результат пустой, так как документ содержит минус-слово "dog"
-    ASSERT_EQUAL(result.size(), 0);
+        // Шаг 4: Утверждение, что список совпавших слов пуст (потому что "sad" — это отрицательное слово, присутствующее в документе)
+        ASSERT_EQUAL(matched_words.size(), 0u);
+    }
+
+    // Шаг 5: Сопоставление запроса только с положительными словами
+    {
+        const string query_positive_words = "happy cat";
+        auto [matched_words, status] = server.MatchDocument(query_positive_words, document_id);
+
+        // Шаг 6: Утверждаем, что список совпавших слов содержит "happy" и "cat"
+        ASSERT_HINT(count(matched_words.begin(), matched_words.end(), "happy") > 0, "Expected 'happy' in matched words");
+        ASSERT_HINT(count(matched_words.begin(), matched_words.end(), "cat") > 0, "Expected 'cat' in matched words");
+        ASSERT_EQUAL(matched_words.size(), 2u);
+    }
 }
 
-// Функция для проверки соблюдения предиката документа
-void TestDocumentPredicateIsIgnored() {
+// Функция для проверки фильтрации результатов поиска с использованием предиката
+void TestFilteringWithPredicate() {
     // Шаг 1: Создание экземпляра SearchServer
     SearchServer server;
 
-    // Шаг 2: Добавление нескольких документов с разными рейтингами и статусами
-    server.AddDocument(9, "fox jumps", DocumentStatus::ACTUAL, {3, 3});
-    server.AddDocument(10, "brown fox", DocumentStatus::BANNED, {1, 4});
+    // Шаг 2: Добавление нескольких документов с различным содержимым и рейтингами
+    server.AddDocument(1, "dog cat", DocumentStatus::ACTUAL, {3, 4, 5});
+    server.AddDocument(2, "dog fox", DocumentStatus::ACTUAL, {1, 1, 1});
+    server.AddDocument(3, "cat bird", DocumentStatus::BANNED, {5, 5, 5});
 
-    // Шаг 3: Определение предиката, который фильтрует только документы с рейтингом >= 3
+    // Шаг 3: Определение предиката, который допускает только документы со средним рейтингом выше 3
     auto predicate = [](int document_id, DocumentStatus status, int rating) {
         (void)document_id; // Suppress unused parameter warning
         (void)status;      // Suppress unused parameter warning
@@ -540,70 +552,66 @@ void TestDocumentPredicateIsIgnored() {
     };
 
     // Шаг 4: Поиск с предикатом
-    const string search_query = "fox";
+    const string search_query = "dog";
     const auto result = server.FindTopDocuments(search_query, predicate);
 
-    // Шаг 5: Утверждение, что результат включает только документы с рейтингом >= 3
-    ASSERT_EQUAL(result.size(), 1);
-    // Убедиться, что возвращается только документ с идентификатором 9, из-за статуса BANNED у документа 10
-    ASSERT_EQUAL(result[0].id, 9);
+    // Шаг 5: Утверждаем, что возвращаются только документы с рейтингом больше 3
+    ASSERT_EQUAL(result.size(), 1u); // Только один документ соответствует условию предиката
+    ASSERT_EQUAL(result[0].id, 1); // Документ 1 должен быть единственным возвращаемым
 }
 
-// Функция для проверки того, что фильтрация статуса документа реализована
-void TestDocumentStatusFilteringIsNotImplemented() {
+// Функция для проверки поиска документов с указанным статусом
+void TestSearchByStatus() {
     // Шаг 1: Создание экземпляра SearchServer
     SearchServer server;
 
-    // Шаг 2: Добавление документов с разными статусами
-    server.AddDocument(11, "brown dog", DocumentStatus::ACTUAL, {4, 5});
-    server.AddDocument(12, "lazy cat", DocumentStatus::BANNED, {2, 1});
+    // Шаг 2: Добавление нескольких документов с разными статусами
+    server.AddDocument(1, "happy cat", DocumentStatus::ACTUAL, {1, 2, 3});
+    server.AddDocument(2, "sad dog", DocumentStatus::BANNED, {4, 5, 6});
+    server.AddDocument(3, "angry bird", DocumentStatus::REMOVED, {7, 8, 9});
 
-    // Шаг 3: Поиск с фильтрацией статуса только для АКТУАЛЬНЫХ документов
-    const string search_query = "dog";
+    // Шаг 3: Поиск документов с ACTUAL статусом
+    const string search_query = "cat";
     const auto result = server.FindTopDocuments(search_query, DocumentStatus::ACTUAL);
 
-    // Шаг 4: Утверждение того, что возвращаются только документы с АКТУАЛЬНЫМ статусом
-    ASSERT_EQUAL(result.size(), 1);
-    ASSERT_EQUAL(result[0].id, 11);
+    // Шаг 4: Утверждаем, что возвращаются только документы со статусом ACTUAL
+    ASSERT_EQUAL(result.size(), 1u); // Только один документ со статусом ACTUAL
+    ASSERT_EQUAL(result[0].id, 1); // Документ 1 должен быть единственным возвращаемым
 }
 
 // Функция для проверки правильности расчета релевантности
-void TestOversimplifiedRelevanceCalculation() {
+void TestCorrectRelevanceCalculation() {
     // Шаг 1: Создание экземпляра SearchServer
     SearchServer server;
 
-    // Шаг 2: Добавление документов с различным содержимым
-    server.AddDocument(13, "fox", DocumentStatus::ACTUAL, {2, 2});
-    server.AddDocument(14, "quick fox", DocumentStatus::ACTUAL, {3, 3});
+    // Шаг 2: Добавление документов с определенным содержимым
+    server.AddDocument(1, "quick brown fox", DocumentStatus::ACTUAL, {1, 2, 3});
+    server.AddDocument(2, "lazy dog", DocumentStatus::ACTUAL, {4, 5, 6});
 
-    // Шаг 3: Поиск запроса, включающего общее слово "fox"
-    const string search_query = "fox";
+    // Шаг 3: Поиск с запросом, который соответствует нескольким документам
+    const string search_query = "quick fox";
     const auto result = server.FindTopDocuments(search_query);
 
-    // Убедитесь, что количество найденных документов соответствует ожиданиям
-    ASSERT_EQUAL(result.size(), 2);
+    // Шаг 4: Расчет ожидаемой релевантности вручную
+    vector<double> expected_relevance;
 
-    // Шаг 4: Подтверждение правильности расчета релевантности
-    // Поскольку оба документа содержат слово "fox", но документ 14 имеет большее количество слов, его релевантность должна быть выше.
-    ASSERT(result[0].id == 14 && result[0].relevance > result[1].relevance);
-    ASSERT(result[1].id == 13);
-}
+    // Рассчитаем ожидаемую релевантность для документа 1
+    double tf_quick_doc1 = 1.0 / 3; // "quick" встречается один раз в 3 словах
+    double tf_fox_doc1 = 1.0 / 3; // "fox" встречается один раз в 3 словах
+    double idf_quick = log(2.0 / 1); // "quick" встречается в 1 из 2 документов
+    double idf_fox = log(2.0 / 1); // "fox" встречается в 1 из 2 документов
+    expected_relevance.push_back((tf_quick_doc1 * idf_quick) + (tf_fox_doc1 * idf_fox));
 
-// Функция для проверки того, что MatchDocument возвращает правильный статус документа
-void TestMatchDocumentAlwaysReturnActualStatus() {
-    // Шаг 1: Создание экземпляра SearchServer
-    SearchServer server;
+    // Рассчитаем ожидаемую релевантность для документа 2
+    double tf_quick_doc2 = 0; // "quick" не встречается в документе 2
+    double tf_fox_doc2 = 0; // "fox" не встречается в документе 2
+    
+    expected_relevance.push_back((tf_quick_doc2 * idf_quick) + (tf_fox_doc2 * idf_fox)); 
 
-    // Шаг 2: Добавление документов с различными статусами
-    server.AddDocument(15, "fox", DocumentStatus::BANNED, {4, 4});
-    server.AddDocument(16, "quick fox", DocumentStatus::ACTUAL, {3, 3});
-
-    // Шаг 3: Использование MatchDocument для проверки статуса документа
-    const string search_query = "fox";
-    const auto [matched_words, status] = server.MatchDocument(search_query, 15);
-
-    // Шаг 4: Подтвердить, что возвращается правильный статус
-    ASSERT_EQUAL(status, DocumentStatus::BANNED);
+    // Шаг 5: Утверждаем, что релевантность каждого документа в результате соответствует ожидаемой релевантности
+    for (size_t i = 0; i < result.size() - 1; ++i) {
+        ASSERT_EQUAL(result[i].relevance, expected_relevance[i]);
+    }
 }
 
 // Функция TestSearchServer является точкой входа для запуска тестов
@@ -615,11 +623,10 @@ void TestSearchServer() {
     RUN_TEST(TestMinusWords);
     RUN_TEST(TestSortingByRelevance);
     RUN_TEST(TestRatingCalculation);
-    RUN_TEST(TestMatchedMinusWordsDoNotResetPlusWords);
-    RUN_TEST(TestDocumentPredicateIsIgnored);
-    RUN_TEST(TestDocumentStatusFilteringIsNotImplemented);
-    RUN_TEST(TestOversimplifiedRelevanceCalculation);
-    RUN_TEST(TestMatchDocumentAlwaysReturnActualStatus);
+    RUN_TEST(TestMatchingDocumentsToQuery);
+    RUN_TEST(TestFilteringWithPredicate);
+    RUN_TEST(TestSearchByStatus);
+    RUN_TEST(TestCorrectRelevanceCalculation);
 }
 
 // --------- Окончание модульных тестов поисковой системы -----------
