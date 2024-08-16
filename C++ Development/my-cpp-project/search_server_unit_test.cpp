@@ -644,7 +644,6 @@ void TestDocumentStatusFiltering() {
     auto predicate = [](int document_id, DocumentStatus status, int rating) {
         (void)document_id;
         (void)rating;
-
         return status == DocumentStatus::ACTUAL;
     };
 
@@ -655,31 +654,20 @@ void TestDocumentStatusFiltering() {
     // Шаг 5: Утверждаем, что возвращаются только документы со статусом ACTUAL
     ASSERT_EQUAL(result.size(), 1u); // Должен быть только один документ
     ASSERT_EQUAL(result[0].id, 1);   // Документ 1 должен быть единственным возвращаемым
+
+    // Дополнительный поиск документов с другим статусом
+    const auto result_banned = server.FindTopDocuments(search_query, [](int, DocumentStatus status, int) {
+        return status == DocumentStatus::BANNED;
+    });
+
+    ASSERT_EQUAL(result_banned.size(), 0u); // Должен быть пустой результат
+
+    const auto result_removed = server.FindTopDocuments(search_query, [](int, DocumentStatus status, int) {
+        return status == DocumentStatus::REMOVED;
+    });
+
+    ASSERT_EQUAL(result_removed.size(), 0u); // Должен быть пустой результат
 }
-
-// Функция для проверки правильности сортировки по релевантности
-// void TestRelevanceSorting() {
-//     // Шаг 1: Создание экземпляра SearchServer
-//     SearchServer server;
-
-//     // Шаг 2: Добавление документов с разным содержанием и рейтингами
-//     server.AddDocument(1, "quick brown fox", DocumentStatus::ACTUAL, {1, 2, 3});
-//     server.AddDocument(2, "lazy dog", DocumentStatus::ACTUAL, {4, 5, 6});
-//     server.AddDocument(3, "brown fox", DocumentStatus::ACTUAL, {7, 8, 9});
-
-//     // Шаг 3: Поиск с запросом, который соответствует нескольким документам
-//     const string search_query = "brown fox";
-//     const auto result = server.FindTopDocuments(search_query);
-
-//     // Шаг 4: Утверждаем, что документы отсортированы по релевантности
-//     ASSERT_EQUAL(result.size(), 2u); // Должны быть найдены 2 документа
-
-//     // Документ 3 должен быть первым (он содержит оба слова запроса)
-//     ASSERT_EQUAL(result[0].id, 3);
-
-//     // Документ 1 должен быть вторым (он содержит оба слова запроса, но с меньшим рейтингом)
-//     ASSERT_EQUAL(result[1].id, 1);
-// }
 
 // Функция для проверки правильности сортировки по релевантности
 void TestRelevanceSorting() {
@@ -696,12 +684,6 @@ void TestRelevanceSorting() {
     // Шаг 3: Поиск с запросом, который соответствует нескольким документам
     const string search_query = "quick brown fox";
     const auto result = server.FindTopDocuments(search_query);
-
-    // Debugging output to see what documents were returned
-    cout << "Search results:" << endl;
-    for (const auto& doc : result) {
-        cout << "Document ID: " << doc.id << ", Relevance: " << doc.relevance << endl;
-    }
 
     // Шаг 4: Утверждаем, что документы отсортированы по релевантности
     ASSERT_EQUAL(result.size(), 4u); // Должны быть найдены 4 документа
