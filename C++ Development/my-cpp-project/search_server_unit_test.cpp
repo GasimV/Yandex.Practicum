@@ -252,7 +252,7 @@ private:
 template <typename T, typename U>
 void AssertEqualImpl(const T& t, const U& u, const string& t_str, const string& u_str, const string& file,
                      const string& func, unsigned line, const string& hint) {
-    if (t != u) {
+    if (t != static_cast<common_type_t<T, U>>(u)) {
         cout << boolalpha;
         cout << file << "("s << line << "): "s << func << ": "s;
         cout << "ASSERT_EQUAL("s << t_str << ", "s << u_str << ") failed: "s;
@@ -277,8 +277,27 @@ void RunTestImpl(const TestFunc& func, const string& test_name) {
 
 #define RUN_TEST(func) RunTestImpl(func, #func)
 
-// Implement ASSERT, ASSERT_HINT
+// Реализация ASSERT, ASSERT_HINT
 
+// Функция для логирования ошибки утверждения (assert) с подробностями
+void AssertImpl(bool condition, const string& expr_str, const string& file_name, const string& func_name, int line_number,
+                const string& hint = ""s) {
+                    if (!condition) {
+                        cout << file_name << "(" << line_number << "): "s;
+                        cout << func_name << ": Assertion failed: "s << expr_str;
+                        if (!hint.empty()) {
+                            cout << ". Hint: "s << hint;
+                        }
+                        cout << endl;
+                        abort();
+                    }
+                }
+
+// Макрос ASSERT для проверки условия и вывода подробностей, если условие ложно
+#define ASSERT(expr) AssertImpl((expr), #expr, __FILE__, __FUNCTION__, __LINE__)
+
+// Макрос ASSERT_HINT для проверки условия и вывода подробностей с подсказкой, если условие ложно
+#define ASSERT_HINT(expr, hint) AssertImpl((expr), #expr, __FILE__, __FUNCTION__, __LINE__, (hint))
 
 // -------- Начало модульных тестов поисковой системы ----------
 
@@ -314,34 +333,119 @@ void TestAddingDocuments() {
     // Шаг 1: Создание экземпляра SearchServer
     SearchServer server;
 
-    // Шаг 2: Определение идентификатора и содержимого документа
+    // Шаг 2: Определение идентификатора и содержания документа
     const int doc_id = 1;
     const string document_content = "cat sat on the mat";
     const vector<int> document_ratings = {5, 3, 4};
 
-    // Шаг 3: Добавление документа на сервер
-    {
-        SearchServer server;
-        server.AddDocument(doc_id, document_content, DocumentStatus::ACTUAL, document_ratings);
+    server.AddDocument(doc_id, document_content, DocumentStatus::ACTUAL, document_ratings);
 
-        // Шаг 4: Поиск документа с помощью запроса, соответствующего содержанию
-        string search_query = "cat";
-        const auto result = server.FindTopDocuments(search_query);
+    // Шаг 4: Поиск документа с помощью запроса, соответствующего содержанию
+    string search_query = "cat";
+    const auto result = server.FindTopDocuments(search_query);
 
-        // Шаг 5: Утверждаем (assert), что результат содержит ровно один документ
-        ASSERT_EQUAL(result.size(), 1u);
+    // Шаг 5: Подтверждаем (assert), что результат содержит ровно один документ
+    ASSERT_EQUAL(result.size(), 1u);
 
-        // Шаг 6. Подтверждаем, что возвращенный идентификатор документа соответствует идентификатору добавленного документа
-        const Document& doc0 = result[0];
-        ASSERT_EQUAL(doc0.id, doc_id);
+    // Шаг 6. Подтверждаем, что возвращенный идентификатор документа соответствует идентификатору добавленного документа
+    const Document& doc0 = result[0];
+    ASSERT_EQUAL(doc0.id, doc_id);
+}
+
+// Функция для проверки исключения стоп-слов в SearchServer
+void TestExcludeStopWords() {
+    // Шаг 1: Создание экземпляра SearchServer
+    SearchServer server;
+
+    // Шаг 2: Установка стоп-слов
+    server.SetStopWords("on the");
+
+    // Шаг 3: Добавить документ на сервер
+    const int doc_id = 2;
+    const string content = "dog runs on the street";
+    const vector<int> ratings = {1, 2, 3};
+    server.AddDocument(doc_id, content, DocumentStatus::ACTUAL, ratings);
+
+    // Шаг 4: Поиск с помощью стоп-слова
+    const string search_query = "on";
+    const auto result = server.FindTopDocuments(search_query);
+
+    // Шаг 5: Утверждаем, что результат пустой (поскольку стоп-слова должны быть исключены)
+    ASSERT_EQUAL(result.size(), 0);
+}
+
+// Функция для проверки минус-слов в SearchServer
+void TestMinusWords() {
+    // Шаг 1: Создание экземпляра SearchServer
+    SearchServer server;
+
+    // Шаг 2: Добавление документа на сервер
+    const int document_id = 3;
+    const string document_content = "car drives fast";
+    const vector<int> document_ratings = {4, 5, 2};
+    server.AddDocument(document_id, document_content, DocumentStatus::ACTUAL, document_ratings);
+
+    // Шаг 3: Поиск с минус-словом
+    string search_query = "car -fast";
+    const auto result = server.FindTopDocuments(search_query);
+
+    // Шаг 4: Утверждение, что результат пустой (так как минус-слово "fast" есть в документе)
+    ASSERT_EQUAL(result.size(), 0);
+}
+
+// Функция для проверки сортировки документов по релевантности
+void TestSortingByRelevance() {
+    // Шаг 1: Создание экземпляра SearchServer
+    SearchServer server;
+
+    // Шаг 2: Добавление нескольких документов с различной релевантностью
+    server.AddDocument(4, "quick brown fox", DocumentStatus::ACTUAL, {2, 3});
+    server.AddDocument(5, "lazy dog", DocumentStatus::ACTUAL, {4, 5});
+    server.AddDocument(6, "quick dog", DocumentStatus::ACTUAL, {1, 2});
+
+    // Шаг 3: Поиск с помощью запроса, который соответствует нескольким документам
+    const string search_query = "quick";
+    const auto result = server.FindTopDocuments(search_query);
+
+    // Шаг 4: Утверждение, что результат отсортирован по релевантности (по убыванию)
+    ASSERT(result[0].relevance >= result[1].relevance);
+    ASSERT(result[1].relevance >= result[2].relevance);
+}
+
+// Функция для проверки расчета рейтинга в SearchServer
+void TestRatingCalculation() {
+    // Шаг 1: Создание экземпляра SearchServer
+    SearchServer server;
+
+    // Шаг 2: Добавление документа с определенными рейтингами
+    const int document_id = 7;
+    const string document_content = "slow turtle";
+    const vector<int> document_ratings = {3, 3, 3};
+    server.AddDocument(document_id, document_content, DocumentStatus::ACTUAL, document_ratings);
+
+    // Шаг 3: Поиск и извлечение документа
+    const string search_query = "turtle";
+    const auto result = server.FindTopDocuments(search_query);
+
+    // Шаг 4: Подтверждение того, что рейтинг документа рассчитан правильно
+    int sum_ratings = 0;
+    for (int rating : document_ratings) {
+        sum_ratings += rating;
     }
 
+    int expected_rating = sum_ratings / static_cast<int>(document_ratings.size());
+    ASSERT_EQUAL(result[0].rating, expected_rating);
 }
 
 // Функция TestSearchServer является точкой входа для запуска тестов
 void TestSearchServer() {
     RUN_TEST(TestExcludeStopWordsFromAddedDocumentContent);
     // Не забудьте вызывать остальные тесты здесь
+    RUN_TEST(TestAddingDocuments);
+    RUN_TEST(TestExcludeStopWords);
+    RUN_TEST(TestMinusWords);
+    RUN_TEST(TestSortingByRelevance);
+    RUN_TEST(TestRatingCalculation);
 }
 
 // --------- Окончание модульных тестов поисковой системы -----------
