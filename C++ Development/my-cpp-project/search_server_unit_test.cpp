@@ -640,33 +640,28 @@ void TestDocumentStatusFiltering() {
     server.AddDocument(2, "sad dog", DocumentStatus::BANNED, {4, 5, 6});
     server.AddDocument(3, "angry bird", DocumentStatus::REMOVED, {7, 8, 9});
 
-    // Шаг 3: Определение предиката, который допускает только документы со статусом ACTUAL
-    auto predicate = [](int document_id, DocumentStatus status, int rating) {
-        (void)document_id;
-        (void)rating;
-        return status == DocumentStatus::ACTUAL;
-    };
+    // Шаг 3: Поиск документов со статусом ACTUAL
+    const auto result_actual = server.FindTopDocuments("cat", DocumentStatus::ACTUAL);
+    ASSERT_EQUAL(result_actual.size(), 1u);
+    ASSERT_EQUAL(result_actual[0].id, 1);
 
-    // Шаг 4: Поиск документов с предикатом
-    const string search_query = "cat";
-    const auto result = server.FindTopDocuments(search_query, predicate);
+    // Шаг 4: Поиск документов со статусом BANNED
+    const auto result_banned = server.FindTopDocuments("dog", DocumentStatus::BANNED);
+    ASSERT_EQUAL(result_banned.size(), 1u);
+    ASSERT_EQUAL(result_banned[0].id, 2);
 
-    // Шаг 5: Утверждаем, что возвращаются только документы со статусом ACTUAL
-    ASSERT_EQUAL(result.size(), 1u); // Должен быть только один документ
-    ASSERT_EQUAL(result[0].id, 1);   // Документ 1 должен быть единственным возвращаемым
+    // Шаг 5: Поиск документов со статусом REMOVED
+    const auto result_removed = server.FindTopDocuments("bird", DocumentStatus::REMOVED);
+    ASSERT_EQUAL(result_removed.size(), 1u);
+    ASSERT_EQUAL(result_removed[0].id, 3);
 
-    // Дополнительный поиск документов с другим статусом
-    const auto result_banned = server.FindTopDocuments(search_query, [](int, DocumentStatus status, int) {
-        return status == DocumentStatus::BANNED;
-    });
+    // Шаг 6: Проверка, что поиск со статусом BANNED не возвращает документ со статусом ACTUAL
+    const auto result_banned_incorrect = server.FindTopDocuments("cat", DocumentStatus::BANNED);
+    ASSERT_EQUAL(result_banned_incorrect.size(), 0u);
 
-    ASSERT_EQUAL(result_banned.size(), 0u); // Должен быть пустой результат
-
-    const auto result_removed = server.FindTopDocuments(search_query, [](int, DocumentStatus status, int) {
-        return status == DocumentStatus::REMOVED;
-    });
-
-    ASSERT_EQUAL(result_removed.size(), 0u); // Должен быть пустой результат
+    // Шаг 7: Проверка, что поиск со статусом REMOVED не возвращает документ со статусом ACTUAL
+    const auto result_removed_incorrect = server.FindTopDocuments("cat", DocumentStatus::REMOVED);
+    ASSERT_EQUAL(result_removed_incorrect.size(), 0u);
 }
 
 // Функция для проверки правильности сортировки по релевантности
