@@ -58,6 +58,25 @@ enum class DocumentStatus {
     REMOVED,
 };
 
+// Overload the << operator for DocumentStatus
+ostream& operator<<(ostream& os, DocumentStatus status) {
+    switch (status) {
+        case DocumentStatus::ACTUAL:
+            os << "ACTUAL";
+            break;
+        case DocumentStatus::IRRELEVANT:
+            os << "IRRELEVANT";
+            break;
+        case DocumentStatus::BANNED:
+            os << "BANNED";
+            break;
+        case DocumentStatus::REMOVED:
+            os << "REMOVED";
+            break;
+    }
+    return os;
+}
+
 class SearchServer {
 public:
     void SetStopWords(const string& text) {
@@ -249,55 +268,99 @@ private:
    Подставьте сюда вашу реализацию макросов
    ASSERT, ASSERT_EQUAL, ASSERT_EQUAL_HINT, ASSERT_HINT и RUN_TEST
 */
-template <typename T, typename U>
-void AssertEqualImpl(const T& t, const U& u, const string& t_str, const string& u_str, const string& file,
-                     const string& func, unsigned line, const string& hint) {
-    if (t != static_cast<common_type_t<T, U>>(u)) {
-        cout << boolalpha;
-        cout << file << "("s << line << "): "s << func << ": "s;
-        cout << "ASSERT_EQUAL("s << t_str << ", "s << u_str << ") failed: "s;
-        cout << t << " != "s << u << "."s;
-        if (!hint.empty()) {
-            cout << " Hint: "s << hint;
+template <typename T>
+ostream& operator<<(ostream& output, const vector<T>& items) {
+    output << "["s;
+    bool first_item = true;
+    for (const T& item : items) {
+        if (!first_item) {
+            output << ", "s;
         }
-        cout << endl;
+        output << item;
+        first_item = false;
+    }
+    output << "]"s;
+    return output;
+}
+ 
+template <typename T>
+ostream& operator<<(ostream& output, const set<T>& items) {
+    output << "{"s;
+    bool first_item = true;
+    for (const T& item : items) {
+        if (!first_item) {
+            output << ", "s;
+        }
+        output << item;
+        first_item = false;
+    }
+    output << "}"s;
+    return output;
+}
+ 
+template <typename K, typename V>
+ostream& operator<<(ostream& output, const map<K, V>& items) {
+    output << "{"s;
+    bool first_item = true;
+    for (const auto& [key, value] : items) {
+        if (!first_item) {
+            output << ", "s;
+        }
+        output << key << ": "s << value;
+        first_item = false;
+    }
+    output << "}"s;
+    return output;
+}
+ 
+/*
+   Подставьте сюда вашу реализацию макросов
+   ASSERT, ASSERT_EQUAL, ASSERT_EQUAL_HINT, ASSERT_HINT и RUN_TEST
+*/
+ 
+void AssertImpl(bool value, const string& expr_str, const string& file, const string& func, unsigned line,
+                const string& hint) {
+    if (!value) {
+        cerr << file << "("s << line << "): "s << func << ": "s;
+        cerr << "Assert("s << expr_str << ") failed."s;
+        if (!hint.empty()) {
+            cerr << " Hint: "s << hint;
+        }
+        cerr << endl;
         abort();
     }
 }
+ 
+template <typename T, typename U>
+void AssertEqualImpl(const T& t, const U& u, const string& t_str, const string& u_str, const string& file,
+                     const string& func, unsigned line, const string& hint) {
+    
+    using CommonType = typename common_type<T, U>::type;
 
-#define ASSERT_EQUAL(a, b) AssertEqualImpl((a), (b), #a, #b, __FILE__, __FUNCTION__, __LINE__, ""s)
-
-#define ASSERT_EQUAL_HINT(a, b, hint) AssertEqualImpl((a), (b), #a, #b, __FILE__, __FUNCTION__, __LINE__, (hint))
-
+    if (static_cast<CommonType>(t) != static_cast<CommonType>(u)) {
+        cerr << boolalpha;
+        cerr << file << "("s << line << "): "s << func << ": "s;
+        cerr << "ASSERT_EQUAL("s << t_str << ", "s << u_str << ") failed: "s;
+        cerr << t << " != "s << u << "."s;
+        if (!hint.empty()) {
+            cerr << " Hint: "s << hint;
+        }
+        cerr << endl;
+        abort();
+    }
+}
+ 
 template <typename TestFunc>
 void RunTestImpl(const TestFunc& func, const string& test_name) {
     func();
     cerr << test_name << " OK"s << endl;
 }
-
+ 
+#define ASSERT(a) AssertImpl((a), #a, __FILE__, __FUNCTION__, __LINE__, ""s)
+#define ASSERT_HINT(a, hint) AssertImpl((a), #a, __FILE__, __FUNCTION__, __LINE__, (hint))
+#define ASSERT_EQUAL(a, b) AssertEqualImpl((a), (b), #a, #b, __FILE__, __FUNCTION__, __LINE__, ""s)
+#define ASSERT_EQUAL_HINT(a, b, hint) AssertEqualImpl((a), (b), #a, #b, __FILE__, __FUNCTION__, __LINE__, (hint))
 #define RUN_TEST(func) RunTestImpl(func, #func)
-
-// Реализация ASSERT, ASSERT_HINT
-
-// Функция для логирования ошибки утверждения (assert) с подробностями
-void AssertImpl(bool condition, const string& expr_str, const string& file_name, const string& func_name, int line_number,
-                const string& hint = ""s) {
-                    if (!condition) {
-                        cout << file_name << "(" << line_number << "): "s;
-                        cout << func_name << ": Assertion failed: "s << expr_str;
-                        if (!hint.empty()) {
-                            cout << ". Hint: "s << hint;
-                        }
-                        cout << endl;
-                        abort();
-                    }
-                }
-
-// Макрос ASSERT для проверки условия и вывода подробностей, если условие ложно
-#define ASSERT(expr) AssertImpl((expr), #expr, __FILE__, __FUNCTION__, __LINE__)
-
-// Макрос ASSERT_HINT для проверки условия и вывода подробностей с подсказкой, если условие ложно
-#define ASSERT_HINT(expr, hint) AssertImpl((expr), #expr, __FILE__, __FUNCTION__, __LINE__, (hint))
 
 // -------- Начало модульных тестов поисковой системы ----------
 
@@ -437,6 +500,112 @@ void TestRatingCalculation() {
     ASSERT_EQUAL(result[0].rating, expected_rating);
 }
 
+// Функция для проверки того, что совпавшие минус-слова сбрасывают совпавшие плюс-слова
+void TestMatchedMinusWordsDoNotResetPlusWords() {
+    // Шаг 1: Создание экземпляра SearchServer
+    SearchServer server;
+
+    // Шаг 2: Добавление документа, содержащего как плюс-слово, так и минус-слово
+    const int document_id = 8;
+    const string document_content = "the quick brown fox jumps over the lazy dog";
+    const vector<int> ratings = {1, 2, 3};
+    server.AddDocument(document_id, document_content, DocumentStatus::ACTUAL, ratings);
+
+    // Шаг 3: Поиск с помощью запроса, включающего минус-слово
+    // В этом сценарии слово "dog" является минус-словом. Если документ содержит слово "dog", 
+    // его следует исключить из результатов поиска, даже если он также содержит плюс-слово "fox".
+    const string search_query = "fox -dog";
+    const auto result = server.FindTopDocuments(search_query);
+
+    // Шаг 4: Утверждение, что результат пустой, так как документ содержит минус-слово "dog"
+    ASSERT_EQUAL(result.size(), 0);
+}
+
+// Функция для проверки соблюдения предиката документа
+void TestDocumentPredicateIsIgnored() {
+    // Шаг 1: Создание экземпляра SearchServer
+    SearchServer server;
+
+    // Шаг 2: Добавление нескольких документов с разными рейтингами и статусами
+    server.AddDocument(9, "fox jumps", DocumentStatus::ACTUAL, {3, 3});
+    server.AddDocument(10, "brown fox", DocumentStatus::BANNED, {1, 4});
+
+    // Шаг 3: Определение предиката, который фильтрует только документы с рейтингом >= 3
+    auto predicate = [](int document_id, DocumentStatus status, int rating) {
+        (void)document_id; // Suppress unused parameter warning
+        (void)status;      // Suppress unused parameter warning
+
+        // cout << "Document ID: " << document_id << ", Status: " << status << ", Rating: " << rating << endl;       
+        return rating >= 3;
+    };
+
+    // Шаг 4: Поиск с предикатом
+    const string search_query = "fox";
+    const auto result = server.FindTopDocuments(search_query, predicate);
+
+    // Шаг 5: Утверждение, что результат включает только документы с рейтингом >= 3
+    ASSERT_EQUAL(result.size(), 1);
+    // Убедиться, что возвращается только документ с идентификатором 9, из-за статуса BANNED у документа 10
+    ASSERT_EQUAL(result[0].id, 9);
+}
+
+// Функция для проверки того, что фильтрация статуса документа реализована
+void TestDocumentStatusFilteringIsNotImplemented() {
+    // Шаг 1: Создание экземпляра SearchServer
+    SearchServer server;
+
+    // Шаг 2: Добавление документов с разными статусами
+    server.AddDocument(11, "brown dog", DocumentStatus::ACTUAL, {4, 5});
+    server.AddDocument(12, "lazy cat", DocumentStatus::BANNED, {2, 1});
+
+    // Шаг 3: Поиск с фильтрацией статуса только для АКТУАЛЬНЫХ документов
+    const string search_query = "dog";
+    const auto result = server.FindTopDocuments(search_query, DocumentStatus::ACTUAL);
+
+    // Шаг 4: Утверждение того, что возвращаются только документы с АКТУАЛЬНЫМ статусом
+    ASSERT_EQUAL(result.size(), 1);
+    ASSERT_EQUAL(result[0].id, 11);
+}
+
+// Функция для проверки правильности расчета релевантности
+void TestOversimplifiedRelevanceCalculation() {
+    // Шаг 1: Создание экземпляра SearchServer
+    SearchServer server;
+
+    // Шаг 2: Добавление документов с различным содержимым
+    server.AddDocument(13, "fox", DocumentStatus::ACTUAL, {2, 2});
+    server.AddDocument(14, "quick fox", DocumentStatus::ACTUAL, {3, 3});
+
+    // Шаг 3: Поиск запроса, включающего общее слово "fox"
+    const string search_query = "fox";
+    const auto result = server.FindTopDocuments(search_query);
+
+    // Убедитесь, что количество найденных документов соответствует ожиданиям
+    ASSERT_EQUAL(result.size(), 2);
+
+    // Шаг 4: Подтверждение правильности расчета релевантности
+    // Поскольку оба документа содержат слово "fox", но документ 14 имеет большее количество слов, его релевантность должна быть выше.
+    ASSERT(result[0].id == 14 && result[0].relevance > result[1].relevance);
+    ASSERT(result[1].id == 13);
+}
+
+// Функция для проверки того, что MatchDocument возвращает правильный статус документа
+void TestMatchDocumentAlwaysReturnActualStatus() {
+    // Шаг 1: Создание экземпляра SearchServer
+    SearchServer server;
+
+    // Шаг 2: Добавление документов с различными статусами
+    server.AddDocument(15, "fox", DocumentStatus::BANNED, {4, 4});
+    server.AddDocument(16, "quick fox", DocumentStatus::ACTUAL, {3, 3});
+
+    // Шаг 3: Использование MatchDocument для проверки статуса документа
+    const string search_query = "fox";
+    const auto [matched_words, status] = server.MatchDocument(search_query, 15);
+
+    // Шаг 4: Подтвердить, что возвращается правильный статус
+    ASSERT_EQUAL(status, DocumentStatus::BANNED);
+}
+
 // Функция TestSearchServer является точкой входа для запуска тестов
 void TestSearchServer() {
     RUN_TEST(TestExcludeStopWordsFromAddedDocumentContent);
@@ -446,6 +615,11 @@ void TestSearchServer() {
     RUN_TEST(TestMinusWords);
     RUN_TEST(TestSortingByRelevance);
     RUN_TEST(TestRatingCalculation);
+    RUN_TEST(TestMatchedMinusWordsDoNotResetPlusWords);
+    RUN_TEST(TestDocumentPredicateIsIgnored);
+    RUN_TEST(TestDocumentStatusFilteringIsNotImplemented);
+    RUN_TEST(TestOversimplifiedRelevanceCalculation);
+    RUN_TEST(TestMatchDocumentAlwaysReturnActualStatus);
 }
 
 // --------- Окончание модульных тестов поисковой системы -----------
