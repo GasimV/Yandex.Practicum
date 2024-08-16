@@ -456,25 +456,6 @@ void TestMinusWords() {
     ASSERT_EQUAL(result.size(), 0);
 }
 
-// Функция для проверки сортировки документов по релевантности
-void TestSortingByRelevance() {
-    // Шаг 1: Создание экземпляра SearchServer
-    SearchServer server;
-
-    // Шаг 2: Добавление нескольких документов с различной релевантностью
-    server.AddDocument(4, "quick brown fox", DocumentStatus::ACTUAL, {2, 3});
-    server.AddDocument(5, "lazy dog", DocumentStatus::ACTUAL, {4, 5});
-    server.AddDocument(6, "quick dog", DocumentStatus::ACTUAL, {1, 2});
-
-    // Шаг 3: Поиск с помощью запроса, который соответствует нескольким документам
-    const string search_query = "quick";
-    const auto result = server.FindTopDocuments(search_query);
-
-    // Шаг 4: Утверждение, что результат отсортирован по релевантности (по убыванию)
-    ASSERT(result[0].relevance >= result[1].relevance);
-    ASSERT(result[1].relevance >= result[2].relevance);
-}
-
 // Функция для проверки расчета рейтинга в SearchServer
 void TestRatingCalculation() {
     // Шаг 1: Создание экземпляра SearchServer
@@ -677,6 +658,30 @@ void TestDocumentStatusFiltering() {
 }
 
 // Функция для проверки правильности сортировки по релевантности
+// void TestRelevanceSorting() {
+//     // Шаг 1: Создание экземпляра SearchServer
+//     SearchServer server;
+
+//     // Шаг 2: Добавление документов с разным содержанием и рейтингами
+//     server.AddDocument(1, "quick brown fox", DocumentStatus::ACTUAL, {1, 2, 3});
+//     server.AddDocument(2, "lazy dog", DocumentStatus::ACTUAL, {4, 5, 6});
+//     server.AddDocument(3, "brown fox", DocumentStatus::ACTUAL, {7, 8, 9});
+
+//     // Шаг 3: Поиск с запросом, который соответствует нескольким документам
+//     const string search_query = "brown fox";
+//     const auto result = server.FindTopDocuments(search_query);
+
+//     // Шаг 4: Утверждаем, что документы отсортированы по релевантности
+//     ASSERT_EQUAL(result.size(), 2u); // Должны быть найдены 2 документа
+
+//     // Документ 3 должен быть первым (он содержит оба слова запроса)
+//     ASSERT_EQUAL(result[0].id, 3);
+
+//     // Документ 1 должен быть вторым (он содержит оба слова запроса, но с меньшим рейтингом)
+//     ASSERT_EQUAL(result[1].id, 1);
+// }
+
+// Функция для проверки правильности сортировки по релевантности
 void TestRelevanceSorting() {
     // Шаг 1: Создание экземпляра SearchServer
     SearchServer server;
@@ -685,22 +690,38 @@ void TestRelevanceSorting() {
     server.AddDocument(1, "quick brown fox", DocumentStatus::ACTUAL, {1, 2, 3});
     server.AddDocument(2, "lazy dog", DocumentStatus::ACTUAL, {4, 5, 6});
     server.AddDocument(3, "brown fox", DocumentStatus::ACTUAL, {7, 8, 9});
+    server.AddDocument(4, "quick brown fox jumps", DocumentStatus::ACTUAL, {2, 3, 4});
+    server.AddDocument(5, "quick dog", DocumentStatus::ACTUAL, {5, 6});
 
     // Шаг 3: Поиск с запросом, который соответствует нескольким документам
-    const string search_query = "brown fox";
+    const string search_query = "quick brown fox";
     const auto result = server.FindTopDocuments(search_query);
 
+    // Debugging output to see what documents were returned
+    cout << "Search results:" << endl;
+    for (const auto& doc : result) {
+        cout << "Document ID: " << doc.id << ", Relevance: " << doc.relevance << endl;
+    }
+
     // Шаг 4: Утверждаем, что документы отсортированы по релевантности
-    ASSERT_EQUAL(result.size(), 3u); // Должны быть найдены три документа
+    ASSERT_EQUAL(result.size(), 4u); // Должны быть найдены 4 документа
 
     // Документ 3 должен быть первым (он содержит оба слова запроса)
     ASSERT_EQUAL(result[0].id, 3);
 
-    // Документ 1 должен быть вторым (он содержит оба слова запроса, но с меньшим рейтингом)
+    // Документ 1 должен быть вторым (он содержит все слова запроса, но с меньшим рейтингом)
     ASSERT_EQUAL(result[1].id, 1);
 
-    // Документ 2 должен быть третьим (он содержит только одно слово запроса)
-    ASSERT_EQUAL(result[2].id, 2);
+    // Документ 4 должен быть третьим (он содержит все слова запроса, но с ещё меньшим рейтингом)
+    ASSERT_EQUAL(result[2].id, 4);
+
+    // Документ 5 должен быть четвертым (он содержит только одно слово запроса)
+    ASSERT_EQUAL(result[3].id, 5);
+
+    // Шаг 5: Утверждение, что результат отсортирован по релевантности (по убыванию)
+    for (size_t i = 0; i < result.size() - 1; ++i) {
+        ASSERT(result[i].relevance >= result[i + 1].relevance);
+    }
 }
 
 // Функция TestSearchServer является точкой входа для запуска тестов
@@ -710,7 +731,6 @@ void TestSearchServer() {
     RUN_TEST(TestAddingDocuments);
     RUN_TEST(TestExcludeStopWords);
     RUN_TEST(TestMinusWords);
-    RUN_TEST(TestSortingByRelevance);
     RUN_TEST(TestRatingCalculation);
     RUN_TEST(TestMatchingDocumentsToQuery);
     RUN_TEST(TestFilteringWithPredicate);
