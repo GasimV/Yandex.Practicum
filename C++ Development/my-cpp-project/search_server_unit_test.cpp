@@ -600,6 +600,7 @@ void TestCorrectRelevanceCalculation() {
     double tf_fox_doc1 = 1.0 / 3; // "fox" встречается один раз в 3 словах
     double idf_quick = log(2.0 / 1); // "quick" встречается в 1 из 2 документов
     double idf_fox = log(2.0 / 1); // "fox" встречается в 1 из 2 документов
+    
     expected_relevance.push_back((tf_quick_doc1 * idf_quick) + (tf_fox_doc1 * idf_fox));
 
     // Рассчитаем ожидаемую релевантность для документа 2
@@ -612,6 +613,94 @@ void TestCorrectRelevanceCalculation() {
     for (size_t i = 0; i < result.size() - 1; ++i) {
         ASSERT_EQUAL(result[i].relevance, expected_relevance[i]);
     }
+}
+
+// Функция для проверки правильного возвращения статуса документов в MatchDocument
+void TestMatchDocumentReturnsCorrectStatus() {
+    // Шаг 1: Создание экземпляра SearchServer
+    SearchServer server;
+
+    // Шаг 2: Добавление нескольких документов с разными статусами
+    server.AddDocument(1, "happy cat", DocumentStatus::ACTUAL, {1, 2, 3});
+    server.AddDocument(2, "sad dog", DocumentStatus::BANNED, {4, 5, 6});
+    server.AddDocument(3, "angry bird", DocumentStatus::REMOVED, {7, 8, 9});
+
+    // Шаг 3: Сопоставление запроса с каждым документом и проверка статуса
+
+    // Test for document with ACTUAL status
+    {
+        const string query = "happy";
+        auto [matched_words, status] = server.MatchDocument(query, 1);
+        ASSERT_EQUAL(status, DocumentStatus::ACTUAL); // Должен вернуть ACTUAL
+    }
+
+    // Test for document with BANNED status
+    {
+        const string query = "sad";
+        auto [matched_words, status] = server.MatchDocument(query, 2);
+        ASSERT_EQUAL(status, DocumentStatus::BANNED); // Должен вернуть BANNED
+    }
+
+    // Test for document with REMOVED status
+    {
+        const string query = "angry";
+        auto [matched_words, status] = server.MatchDocument(query, 3);
+        ASSERT_EQUAL(status, DocumentStatus::REMOVED); // Должен вернуть REMOVED
+    }
+}
+
+// Функция для проверки фильтрации документов по статусу с использованием лямбда-функции
+void TestDocumentStatusFiltering() {
+    // Шаг 1: Создание экземпляра SearchServer
+    SearchServer server;
+
+    // Шаг 2: Добавление нескольких документов с разными статусами
+    server.AddDocument(1, "happy cat", DocumentStatus::ACTUAL, {1, 2, 3});
+    server.AddDocument(2, "sad dog", DocumentStatus::BANNED, {4, 5, 6});
+    server.AddDocument(3, "angry bird", DocumentStatus::REMOVED, {7, 8, 9});
+
+    // Шаг 3: Определение предиката, который допускает только документы со статусом ACTUAL
+    auto predicate = [](int document_id, DocumentStatus status, int rating) {
+        (void)document_id;
+        (void)rating;
+
+        return status == DocumentStatus::ACTUAL;
+    };
+
+    // Шаг 4: Поиск документов с предикатом
+    const string search_query = "cat";
+    const auto result = server.FindTopDocuments(search_query, predicate);
+
+    // Шаг 5: Утверждаем, что возвращаются только документы со статусом ACTUAL
+    ASSERT_EQUAL(result.size(), 1u); // Должен быть только один документ
+    ASSERT_EQUAL(result[0].id, 1);   // Документ 1 должен быть единственным возвращаемым
+}
+
+// Функция для проверки правильности сортировки по релевантности
+void TestRelevanceSorting() {
+    // Шаг 1: Создание экземпляра SearchServer
+    SearchServer server;
+
+    // Шаг 2: Добавление документов с разным содержанием и рейтингами
+    server.AddDocument(1, "quick brown fox", DocumentStatus::ACTUAL, {1, 2, 3});
+    server.AddDocument(2, "lazy dog", DocumentStatus::ACTUAL, {4, 5, 6});
+    server.AddDocument(3, "brown fox", DocumentStatus::ACTUAL, {7, 8, 9});
+
+    // Шаг 3: Поиск с запросом, который соответствует нескольким документам
+    const string search_query = "brown fox";
+    const auto result = server.FindTopDocuments(search_query);
+
+    // Шаг 4: Утверждаем, что документы отсортированы по релевантности
+    ASSERT_EQUAL(result.size(), 3u); // Должны быть найдены три документа
+
+    // Документ 3 должен быть первым (он содержит оба слова запроса)
+    ASSERT_EQUAL(result[0].id, 3);
+
+    // Документ 1 должен быть вторым (он содержит оба слова запроса, но с меньшим рейтингом)
+    ASSERT_EQUAL(result[1].id, 1);
+
+    // Документ 2 должен быть третьим (он содержит только одно слово запроса)
+    ASSERT_EQUAL(result[2].id, 2);
 }
 
 // Функция TestSearchServer является точкой входа для запуска тестов
@@ -627,6 +716,9 @@ void TestSearchServer() {
     RUN_TEST(TestFilteringWithPredicate);
     RUN_TEST(TestSearchByStatus);
     RUN_TEST(TestCorrectRelevanceCalculation);
+    RUN_TEST(TestMatchDocumentReturnsCorrectStatus);
+    RUN_TEST(TestDocumentStatusFiltering);
+    RUN_TEST(TestRelevanceSorting);
 }
 
 // --------- Окончание модульных тестов поисковой системы -----------
