@@ -91,12 +91,12 @@ public:
             return false;
         }
 
-        if (document_ids_set_.count(document_id) > 0) {
+        if (documents_.count(document_id) > 0) {
             cout << "Error: Document ID already exists." << endl;
             return false;
         }
 
-        if (!IsValidWord(document)) {
+        if (!IsValidText(document)) {
             cout << "Error: Document contains invalid characters." << endl;
             return false;
         }
@@ -115,7 +115,6 @@ public:
         }
 
         documents_.emplace(document_id, DocumentData{ComputeAverageRating(ratings), status});
-        document_ids_set_.insert(document_id);
         document_ids_.push_back(document_id);
         return true;
     }
@@ -123,20 +122,15 @@ public:
     template <typename DocumentPredicate>
     [[nodiscard]] bool FindTopDocuments(const string& raw_query,
                                         DocumentPredicate document_predicate, vector<Document>& result) const {
-        if (!IsValidWord(raw_query)) {
+        if (!IsValidText(raw_query)) {
             cout << "Error: Query contains invalid characters." << endl;
             return false;
         }
 
         const vector<string> raw_query_words = SplitIntoWordsNoStop(raw_query);
         for (const string& word : raw_query_words) {
-            if (word.size() == 1 && word[0] == '-') {
-                cout << "Error: No text after minus sign." << endl;
-                return false;
-            }
-
-            if (word.size() > 1 && word[0] == '-' && word[1] == '-') {
-                cout << "Error: Too many minus signs before the word." << endl;
+            if (word == "-" || word == "--") {
+                cout << "Error: Invalid minus usage in query." << endl;
                 return false;
             }
 
@@ -183,20 +177,15 @@ public:
 
     [[nodiscard]] bool MatchDocument(const string& raw_query, int document_id,
                                      tuple<vector<string>, DocumentStatus>& result) const {
-        if (!IsValidWord(raw_query)) {
+        if (!IsValidText(raw_query)) {
             cout << "Error: Query contains invalid characters." << endl;
             return false;
         }
 
         const vector<string> raw_query_words = SplitIntoWordsNoStop(raw_query);
         for (const string& word : raw_query_words) {
-            if (word.size() == 1 && word[0] == '-') {
-                cout << "Error: No text after minus sign." << endl;
-                return false;
-            }
-
-            if (word.size() > 1 && word[0] == '-' && word[1] == '-') {
-                cout << "Error: Too many minus signs before the word." << endl;
+            if (word == "-" || word == "--") {
+                cout << "Error: Invalid minus usage in query." << endl;
                 return false;
             }
 
@@ -248,7 +237,6 @@ private:
     const set<string> stop_words_;
     map<string, map<int, double>> word_to_document_freqs_;
     map<int, DocumentData> documents_;
-    set<int> document_ids_set_;
     vector<int> document_ids_;
 
     bool IsStopWord(const string& word) const {
@@ -324,7 +312,7 @@ private:
                 continue;
             }
             const double inverse_document_freq = ComputeWordInverseDocumentFreq(word);
-            for (const auto &[document_id, term_freq] : word_to_document_freqs_.at(word)) {
+            for (const auto& [document_id, term_freq] : word_to_document_freqs_.at(word)) {
                 const auto& document_data = documents_.at(document_id);
                 if (document_predicate(document_id, document_data.status, document_data.rating)) {
                     document_to_relevance[document_id] += term_freq * inverse_document_freq;
@@ -336,13 +324,13 @@ private:
             if (word_to_document_freqs_.count(word) == 0) {
                 continue;
             }
-            for (const auto &[document_id, _] : word_to_document_freqs_.at(word)) {
+            for (const auto& [document_id, _] : word_to_document_freqs_.at(word)) {
                 document_to_relevance.erase(document_id);
             }
         }
 
         vector<Document> matched_documents;
-        for (const auto &[document_id, relevance] : document_to_relevance) {
+        for (const auto& [document_id, relevance] : document_to_relevance) {
             matched_documents.push_back({document_id, relevance, documents_.at(document_id).rating});
         }
         return matched_documents;
@@ -350,6 +338,12 @@ private:
 
     static bool IsValidWord(const string& word) {
         return none_of(word.begin(), word.end(), [](char c) {
+            return c >= '\0' && c < ' ';
+        });
+    }
+
+    static bool IsValidText(const string& text) {
+        return none_of(text.begin(), text.end(), [](char c) {
             return c >= '\0' && c < ' ';
         });
     }
