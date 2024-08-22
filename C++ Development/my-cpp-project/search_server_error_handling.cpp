@@ -12,6 +12,7 @@
 using namespace std;
 
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
+const double EPSILON = 1e-6;
 
 vector<string> SplitIntoWords(const string& text) {
     vector<string> words;
@@ -89,6 +90,11 @@ public:
             return false;
         }
         const vector<string> words = SplitIntoWordsNoStop(document);
+        for (const string& word : words) {
+            if (!IsValidWord(word)) {
+                return false;
+            }
+        }
         const double inv_word_count = 1.0 / words.size();
         for (const string& word : words) {
             word_to_document_freqs_[word][document_id] += inv_word_count;
@@ -100,20 +106,38 @@ public:
 
     template <typename DocumentPredicate>
     optional<vector<Document>> FindTopDocuments(const string& raw_query, DocumentPredicate document_predicate) const {
-        auto parsed_query = ParseQuery(raw_query);
-        if (!parsed_query) {
+        const auto query = ParseQuery(raw_query);
+        if (!query) {
             return nullopt;
         }
-        auto matched_documents = FindAllDocuments(parsed_query.value(), document_predicate);
+
+        // Additional validation of minus words
+        for (const string& word : query->minus_words) {
+            if (word.empty() || word[0] == '-') {
+                return nullopt;
+            }
+            if (!IsValidWord(word)) {
+                return nullopt;
+            }
+        }
+
+        // Additional validation of plus words
+        for (const string& word : query->plus_words) {
+            if (!IsValidWord(word)) {
+                return nullopt;
+            }
+        }
+
+        auto matched_documents = FindAllDocuments(query.value(), document_predicate);
 
         sort(matched_documents.begin(), matched_documents.end(),
-             [](const Document& lhs, const Document& rhs) {
-                 if (abs(lhs.relevance - rhs.relevance) < 1e-6) {
-                     return lhs.rating > rhs.rating;
-                 } else {
-                     return lhs.relevance > rhs.relevance;
-                 }
-             });
+            [](const Document& lhs, const Document& rhs) {
+                if (abs(lhs.relevance - rhs.relevance) < EPSILON) {
+                    return lhs.rating > rhs.rating;
+                } else {
+                    return lhs.relevance > rhs.relevance;
+                }
+            });
         if (matched_documents.size() > MAX_RESULT_DOCUMENT_COUNT) {
             matched_documents.resize(MAX_RESULT_DOCUMENT_COUNT);
         }
@@ -124,7 +148,6 @@ public:
         return FindTopDocuments(raw_query, [status](int document_id, DocumentStatus document_status, int rating) {
             (void)document_id;
             (void)rating;
-            
             return document_status == status;
         });
     }
@@ -137,13 +160,30 @@ public:
         if (documents_.count(document_id) == 0) {
             return nullopt;
         }
-        auto parsed_query = ParseQuery(raw_query);
-        if (!parsed_query) {
+        auto query = ParseQuery(raw_query);
+        if (!query) {
             return nullopt;
         }
-        const auto& query = parsed_query.value();
+
+        // Additional validation of minus words
+        for (const string& word : query->minus_words) {
+            if (word.empty() || word[0] == '-') {
+                return nullopt;
+            }
+            if (!IsValidWord(word)) {
+                return nullopt;
+            }
+        }
+
+        // Additional validation of plus words
+        for (const string& word : query->plus_words) {
+            if (!IsValidWord(word)) {
+                return nullopt;
+            }
+        }
+
         vector<string> matched_words;
-        for (const string& word : query.plus_words) {
+        for (const string& word : query->plus_words) {
             if (word_to_document_freqs_.count(word) == 0) {
                 continue;
             }
@@ -151,7 +191,7 @@ public:
                 matched_words.push_back(word);
             }
         }
-        for (const string& word : query.minus_words) {
+        for (const string& word : query->minus_words) {
             if (word_to_document_freqs_.count(word) == 0) {
                 continue;
             }
@@ -163,7 +203,6 @@ public:
         return tuple{matched_words, documents_.at(document_id).status};
     }
 
-    // Методы должны быть публичными
     int GetDocumentCount() const {
         return documents_.size();
     }
@@ -232,8 +271,6 @@ private:
         Query query;
         for (const string& word : SplitIntoWords(text)) {
             const QueryWord query_word = ParseQueryWord(word);
-            
-            // Проверка на валидность каждого слова
             if (!IsValidWord(query_word.data)) {
                 return nullopt;
             }
