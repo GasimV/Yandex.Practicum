@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <iostream>
-#include <set>
 #include <string>
 #include <vector>
 
@@ -14,20 +13,18 @@ void PrintRange(It range_begin, It range_end) {
     cout << endl;
 }
 
-template <typename It>
-auto MakeVector(It range_begin, It range_end) {
-    return vector(range_begin, range_end);
-}
-
 template <typename Container>
-void EraseAndPrint(Container& container, int i) {
-    auto it = container.erase(container.begin() + i);
-    PrintRange(container.begin(), it);
-    PrintRange(it, container.end());
+void EraseAndPrint(Container& container, int first, int range_start, int range_end) {
+    container.erase(container.begin() + first);
+    PrintRange(container.begin(), container.end());
+
+    container.erase(container.begin() + range_start, container.begin() + range_end);
+
+    PrintRange(container.begin(), container.end());
 }
 
 int main() {
     vector<string> langs = {"Python"s, "Java"s, "C#"s, "Ruby"s, "C++"s};
-    EraseAndPrint(langs, 0);
+    EraseAndPrint(langs, 0, 0, 2);
     return 0;
 }
