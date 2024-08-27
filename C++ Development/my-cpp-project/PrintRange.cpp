@@ -19,16 +19,15 @@ auto MakeVector(It range_begin, It range_end) {
     return vector(range_begin, range_end);
 }
 
-template <typename Container, typename Iterator>
-void EraseAndPrint(Container& container, Iterator it) {
-    // After erasing an element from the container, the iterator 'it' becomes invalid, so it should be reassigned
-    it = container.erase(it); // Erase the element and update 'it'
+template <typename Container>
+void EraseAndPrint(Container& container, int i) {
+    auto it = container.erase(container.begin() + i);
     PrintRange(container.begin(), it);
     PrintRange(it, container.end());
 }
 
 int main() {
     vector<string> langs = {"Python"s, "Java"s, "C#"s, "Ruby"s, "C++"s};
-    EraseAndPrint(langs, langs.begin());
+    EraseAndPrint(langs, 0);
     return 0;
 }
