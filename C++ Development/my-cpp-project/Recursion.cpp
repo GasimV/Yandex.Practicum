@@ -3,17 +3,18 @@
 
 using namespace std;
 
-uint64_t Fibonacci(int n) {
-    if (n == 0) {
-        return 0;
+bool IsPowOfTwo(int n) {
+    if (n < 1) {
+        return false;
     } else if (n == 1) {
-        return 1;
+        return true;
+    } else if (n % 2 == 0) {
+        return IsPowOfTwo(n / 2);
     }
-    uint64_t a = Fibonacci(n-1);
-    uint64_t b = Fibonacci(n-2);
-    return a + b;
+    return false;
 }
 
 int main() {
-    cout << Fibonacci(6) << endl;
+    int result = IsPowOfTwo(1024);
+    cout << result << endl;
 }
