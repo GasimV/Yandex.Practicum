@@ -376,7 +376,7 @@ auto Paginate(const Container& c, size_t page_size) {
 template <typename Iterator>
 ostream& operator<<(ostream& os, const IteratorRange<Iterator>& range) {
     for (auto it = range.begin(); it != range.end(); ++it) {
-        os << *it << " ";
+        os << *it;
     }
     return os;
 }
