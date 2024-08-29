@@ -3,6 +3,7 @@
         "tuple": "cpp",
         "optional": "cpp",
         "iostream": "cpp",
-        "vector": "cpp"
+        "vector": "cpp",
+        "initializer_list": "cpp"
     }
 }
