@@ -1,28 +1,29 @@
 #include <iostream>
 #include <vector>
 #include <cstdint>
+#include <algorithm>
+#include <numeric>
+#include <random>
 
 using namespace std;
 
-template <typename It>
-void PrintRange(It range_begin, It range_end) {
-    for (auto it = range_begin; it != range_end; ++it) {
-        cout << *it << " "s;
-    }
-    cout << endl;
-}
-
 template <typename Type>
-class Stack {
+class StackMin {
 public:
+    // Push method
     void Push(const Type& element) {
-        // Method to push an element onto the stack
         elements_.push_back(element);
+        if (min_elements_.empty() || element <= min_elements_.back()) {
+            min_elements_.push_back(element);
+        } else {
+            min_elements_.push_back(min_elements_.back());
+        }
     }
+    // Pop method
     void Pop() {
-        // Method to pop an element from the stack
         if (!elements_.empty()) {
             elements_.pop_back();
+            min_elements_.pop_back();
         } else {
             throw runtime_error("Error: Pop on empty stack");
         }
@@ -34,6 +35,14 @@ public:
     Type& Peek() {
         // Method to peek at the top element (non-const version)
         return elements_.back();
+    }
+    // PeekMin method (returns the current minimum) (const version)
+    const Type& PeekMin() const {
+        return min_elements_.back();
+    }
+    // PeekMin method (non-const version)
+    Type& PeekMin() {
+        return min_elements_.back();
     }
     void Print() const {
         // Method to print all elements in the stack
@@ -55,17 +64,28 @@ public:
     }
 
 private:
-    vector<Type> elements_; // Vector to store stack elements
+    vector<Type> elements_; // Main stack to store elements
+    vector<Type> min_elements_; // Stack to store current minimum elements
+
 };
 
 int main() {
-    Stack<int> stack;
-    for (uint32_t i = 0; i < 10; ++i) {
-        stack.Push(i);
-        stack.Print();
+    StackMin<int> stack;
+    vector<int> values(5);
+    // заполняем вектор для тестирования нашего стека
+    iota(values.begin(), values.end(), 1);
+    // перемешиваем значения
+    random_device rd;
+    mt19937 g(rd());
+    shuffle(values.begin(), values.end(), g);
+    // заполняем стек
+    for (int i = 0; i < 5; ++i) {
+        stack.Push(values[i]);
     }
+    // печатаем стек и его минимум, постепенно убирая из стека элементы
     while (!stack.IsEmpty()) {
-        stack.Pop();
         stack.Print();
+        cout << "Минимум = "s << stack.PeekMin() << endl;
+        stack.Pop();
     }
 }
