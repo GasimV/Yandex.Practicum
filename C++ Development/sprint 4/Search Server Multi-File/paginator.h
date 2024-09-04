@@ -3,22 +3,21 @@
 #include <vector>
 #include <iterator>
 #include <iostream>
-#include <cassert>  // Include assert for using assert()
 
 template <typename Iterator>
 class IteratorRange {
 private:
     Iterator range_begin;
     Iterator range_end;
-    size_t range_size;
 
 public:
+    // Constructor to initialize the range
     IteratorRange(Iterator begin, Iterator end)
-        : range_begin(begin), range_end(end), range_size(std::distance(begin, end)) {}
+        : range_begin(begin), range_end(end) {}
 
     Iterator begin() const { return range_begin; }
     Iterator end() const { return range_end; }
-    size_t size() const { return range_size; }
+    size_t size() const { return std::distance(range_begin, range_end); }
 };
 
 template <typename Iterator>
@@ -36,27 +35,20 @@ private:
 
 public:
     Paginator(Iterator range_begin, Iterator range_end, size_t page_size) {
-        assert(page_size > 0);  // Ensure page size is positive
-
-        // Check if range_begin equals range_end (empty container case)
-        if (range_begin == range_end) {
-            return;  // No pages to be created if the range is empty
-        }
-
-        for (Iterator it = range_begin; it != range_end;) {
-            size_t current_page_size = std::min(page_size, static_cast<size_t>(std::distance(it, range_end)));
-            Iterator next_it = std::next(it, current_page_size);  // Advance safely by page size
-            pages.push_back({it, next_it});
-            it = next_it;
+        for (Iterator current = range_begin; current != range_end;) {
+            Iterator next = current;
+            std::advance(next, std::min(page_size, static_cast<size_t>(std::distance(current, range_end))));
+            pages.push_back({current, next});
+            current = next;
         }
     }
 
-    typename std::vector<IteratorRange<Iterator>>::const_iterator begin() const { return pages.begin(); }
-    typename std::vector<IteratorRange<Iterator>>::const_iterator end() const { return pages.end(); }
+    auto begin() const { return pages.begin(); }
+    auto end() const { return pages.end(); }
     size_t size() const { return pages.size(); }
 };
 
 template <typename Container>
-Paginator<typename Container::const_iterator> Paginate(const Container& c, size_t page_size) {
+auto Paginate(const Container& c, size_t page_size) {
     return Paginator(c.begin(), c.end(), page_size);
 }
