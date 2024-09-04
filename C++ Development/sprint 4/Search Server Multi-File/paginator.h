@@ -23,7 +23,7 @@ public:
 template <typename Iterator>
 std::ostream& operator<<(std::ostream& os, const IteratorRange<Iterator>& range) {
     for (auto it = range.begin(); it != range.end(); ++it) {
-        os << *it << ' ';
+        os << *it;  // Directly print the element without any space
     }
     return os;
 }
