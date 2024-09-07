@@ -46,32 +46,6 @@ The platform is highly modular, making use of reusable components and Django bes
    - Secures the application with TLS/SSL via NGINX, ensuring secure connections.
    - Optimizes performance and scalability through the use of the ASGI server (Daphne) for Django Channels.
 
-## Highlights by Chapter
-
-### **Chapter 1: Building the E-Learning Platform**
-- Created models for courses, modules, and content.
-- Implemented data fixtures and model inheritance for flexible content types.
-
-### **Chapter 2: Creating the Content Management System**
-- Built class-based views (CBVs) for course management.
-- Introduced mixins for reusability and formsets for managing multiple forms.
-
-### **Chapter 3: Rendering and Caching Content**
-- Developed public-facing views for displaying courses.
-- Installed Memcached and Redis for efficient caching.
-
-### **Chapter 4: Building a RESTful API**
-- Created a fully functional API for the platform using Django REST framework.
-- Added authentication and permissions to secure the API.
-
-### **Chapter 5: Building a Chat Server**
-- Built a real-time chat system using Django Channels.
-- Enabled WebSocket communication and persisted messages into the database.
-
-### **Chapter 6: Setting Up a Production Environment**
-- Deployed the platform using Docker, NGINX, PostgreSQL, and Redis.
-- Configured TLS/SSL for secure access and optimized for production.
-
 ## Technologies Used
 
 - **Django**: Web framework for building the e-learning platform.
