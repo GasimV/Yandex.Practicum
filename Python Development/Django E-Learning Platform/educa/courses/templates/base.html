@@ -2,8 +2,8 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <meta charset="UTF-8" />
-        <title>{% block title %}Educa{% end block %}</title>
+        <meta charset="utf-8" />
+        <title>{% block title %}Educa{% endblock %}</title>
         <link href="{% static "css/base.css" %}" rel="stylesheet">
     </head>
     <body>
@@ -26,7 +26,11 @@
             {% endblock %}
         </div>
         <script>
-            document
+            document.addEventListener('DOMContentLoader', (event) => {
+                // DOM loaded
+                {% block domready %}
+                {% endblock %}
+            })
         </script>
     </body>
 </html>
