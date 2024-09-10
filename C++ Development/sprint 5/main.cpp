@@ -1,7 +1,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <vector>
-#include "log_duration.h" // Подключаем заголовочный файл с классом LogDuration
+#include "log_duration.h" // Подключаем заголовочный файл с макросом LOG_DURATION
 
 using namespace std;
 
@@ -37,7 +37,7 @@ void AppendRandom(vector<int>& v, int n) {
 }
 
 void Operate() {
-    LogDuration total_duration("Total"); // Измеряем общее время работы функции Operate
+    LOG_DURATION("Total"); // Используем макрос вместо LogDuration для общего времени
 
     vector<int> random_bits;
 
@@ -47,20 +47,20 @@ void Operate() {
 
     // заполним вектор случайными числами
     {
-        LogDuration guard("Append random");
+        LOG_DURATION("Append random"); // Используем макрос для измерения времени добавления случайных чисел
         AppendRandom(random_bits, N);
     }
 
     // Переворачиваем вектор задом наперёд
     vector<int> reversed_bits;
     {
-        LogDuration guard("Reverse");
+        LOG_DURATION("Reverse"); // Используем макрос для измерения времени переворота вектора
         reversed_bits = ReverseVector(random_bits);
     }
 
     // Считаем процент единиц на начальных отрезках вектора
     {
-        LogDuration guard("Counting");
+        LOG_DURATION("Counting"); // Используем макрос для измерения времени подсчёта
         for (int i = 1, step = 1; i <= N; i += step, step *= 2) {
             double rate = CountPops(reversed_bits, 0, i) * 100. / i;
             cout << "After "s << i << " bits we found "s << rate << "% pops"s << endl;

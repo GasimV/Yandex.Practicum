@@ -27,3 +27,9 @@ private:
     std::string operation_name_;
     const Clock::time_point start_time_ = Clock::now();
 };
+
+// Макрос для автоматического создания объекта LogDuration с уникальным именем
+#define PROFILE_CONCAT_INTERNAL(X, Y) X ## Y
+#define PROFILE_CONCAT(X, Y) PROFILE_CONCAT_INTERNAL(X, Y)
+#define UNIQUE_VAR_NAME_PROFILE PROFILE_CONCAT(profile_guard, __LINE__)
+#define LOG_DURATION(x) LogDuration UNIQUE_VAR_NAME_PROFILE(x)
