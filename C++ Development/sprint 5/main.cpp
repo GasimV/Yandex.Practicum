@@ -1,12 +1,16 @@
+#include "log_duration.h"
+
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <vector>
-#include "log_duration.h" // Подключаем заголовочный файл с макросом LOG_DURATION
 
 using namespace std;
 
+// Наивная реализация реверсирования
 vector<int> ReverseVector(const vector<int>& source_vector) {
     vector<int> res;
+
     for (int i : source_vector) {
         res.insert(res.begin(), i);
     }
@@ -14,60 +18,77 @@ vector<int> ReverseVector(const vector<int>& source_vector) {
     return res;
 }
 
-int CountPops(const vector<int>& source_vector, int begin, int end) {
-    int res = 0;
+// Хорошая реализация реверсирования (вставки в конец)
+vector<int> ReverseVector2(const vector<int>& source_vector) {
+    vector<int> res;
 
-    for (int i = begin; i < end; ++i) {
-        if (source_vector[i]) {
-            ++res;
-        }
+    // будем проходить source_vector задом наперёд
+    // с помощью обратного итератора
+    for (auto iterator = source_vector.rbegin(); iterator != source_vector.rend(); ++iterator) {
+        res.push_back(*iterator);
     }
 
     return res;
 }
 
-void AppendRandom(vector<int>& v, int n) {
-    for (int i = 0; i < n; ++i) {
-        // получаем случайное число с помощью функции rand.
-        // с помощью (rand() % 2) получим целое число в диапазоне 0..1.
-        // в C++ имеются более современные генераторы случайных чисел,
-        // но в данном уроке не будем их касаться
-        v.push_back(rand() % 2);
-    }
+// Отличная реализация реверсирования (двумя итераторами)
+vector<int> ReverseVector3(const vector<int>& source_vector) {
+    return {source_vector.rbegin(), source_vector.rend()};
 }
 
+// Собственная реализация реверсирования (заполняем с конца)
+vector<int> ReverseVector4(const vector<int>& source_vector) {
+    vector<int> res(source_vector.size());
+
+    for (size_t i = 0; i < source_vector.size(); ++i) {
+        res[source_vector.size() - 1 - i] = source_vector[i];
+    }
+
+    return res;
+}
+
+// Функция для запуска тестов и замеров
 void Operate() {
-    LOG_DURATION("Total"); // Используем макрос вместо LogDuration для общего времени
+    vector<int> rand_vector;
+    int n;
 
-    vector<int> random_bits;
+    cin >> n;
+    rand_vector.reserve(n);
 
-    // операция << для целых чисел это сдвиг всех бит в двоичной
-    // записи числа. Запишем с её помощью число 2 в степени 17 (131072)
-    static const int N = 1 << 17;
-
-    // заполним вектор случайными числами
-    {
-        LOG_DURATION("Append random"); // Используем макрос для измерения времени добавления случайных чисел
-        AppendRandom(random_bits, N);
+    // Заполняем вектор случайными числами
+    for (int i = 0; i < n; ++i) {
+        rand_vector.push_back(rand());
     }
 
-    // Переворачиваем вектор задом наперёд
-    vector<int> reversed_bits;
-    {
-        LOG_DURATION("Reverse"); // Используем макрос для измерения времени переворота вектора
-        reversed_bits = ReverseVector(random_bits);
+    // Если размер вектора <= 100000, тестируем Naive и Good
+    if (n <= 100'000) {
+        {
+            LOG_DURATION("Naive");
+            auto reversed = ReverseVector(rand_vector);
+        }
+        {
+            LOG_DURATION("Good");
+            auto reversed = ReverseVector2(rand_vector);
+        }
     }
-
-    // Считаем процент единиц на начальных отрезках вектора
-    {
-        LOG_DURATION("Counting"); // Используем макрос для измерения времени подсчёта
-        for (int i = 1, step = 1; i <= N; i += step, step *= 2) {
-            double rate = CountPops(reversed_bits, 0, i) * 100. / i;
-            cout << "After "s << i << " bits we found "s << rate << "% pops"s << endl;
+    // Если размер вектора > 100000, тестируем Good, Best и Your
+    else {
+        {
+            LOG_DURATION("Good");
+            auto reversed = ReverseVector2(rand_vector);
+        }
+        {
+            LOG_DURATION("Best");
+            auto reversed = ReverseVector3(rand_vector);
+        }
+        {
+            LOG_DURATION("Your");
+            auto reversed = ReverseVector4(rand_vector);
         }
     }
 }
 
 int main() {
     Operate();
+    return 0;
 }
