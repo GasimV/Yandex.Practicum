@@ -52,6 +52,95 @@ public:
         return size_ == 0;
     }
 
+    // Шаблон класса BasicIterator
+    template <typename ValueType>
+    class BasicIterator {
+        friend class SingleLinkedList;
+
+        explicit BasicIterator(Node* node) : node_(node) {};
+
+    public:
+        using iterator_category = std::forward_iterator_tag;
+        using value_type = Type;
+        using difference_type = std::ptrdiff_t;
+        using pointer = ValueType*;
+        using reference = ValueType&;
+
+        BasicIterator() = default;
+
+        BasicIterator(const BasicIterator<Type>& other) noexcept : node_(other.node_) {};
+
+        BasicIterator& operator=(const BasicIterator& rhs) = default;
+
+        [[nodiscard]] bool operator==(const BasicIterator<const Type>& rhs) const noexcept {
+            return node_ == rhs.node_;
+        }
+
+        [[nodiscard]] bool operator!=(const BasicIterator<const Type>& rhs) const noexcept {
+            return node_ != rhs.node_;
+        }
+
+        [[nodiscard]] bool operator==(const BasicIterator<Type>& rhs) const noexcept {
+            return node_ == rhs.node_;
+        }
+
+        [[nodiscard]] bool operator!=(const BasicIterator<Type>& rhs) const noexcept {
+            return node_ != rhs.node_;
+        }
+
+        BasicIterator& operator++() noexcept {
+            assert(node_ != nullptr);
+            node_ = node_->next_node;
+            return *this;
+        }
+
+        BasicIterator operator++(int) noexcept {
+            BasicIterator temp = *this;
+            ++(*this);
+            return temp;
+        }
+
+        [[nodiscard]] reference operator*() const noexcept {
+            assert(node_ != nullptr);
+            return node_->value;
+        }
+
+        [[nodiscard]] pointer operator->() const noexcept {
+            assert(node_ != nullptr);
+            return &(node_->value);
+        }
+    private:
+        Node* node_ = nullptr;
+    };
+
+public:
+    using Iterator = BasicIterator<Type>;
+    using ConstIterator = BasicIterator<const Type>;
+
+    [[nodiscard]] Iterator begin() noexcept {
+        return Iterator{head_.next_node};
+    }
+
+    [[nodiscard]] Iterator end() noexcept {
+        return Iterator{nullptr};
+    }
+
+    [[nodiscard]] ConstIterator begin() const noexcept {
+        return ConstIterator{head_.next_node};
+    }
+
+    [[nodiscard]] ConstIterator end() const noexcept {
+        return ConstIterator{nullptr};
+    }
+
+    [[nodiscard]] ConstIterator cbegin() const noexcept {
+        return ConstIterator{head_.next_node};
+    }
+
+    [[nodiscard]] ConstIterator cend() const noexcept {
+        return ConstIterator{nullptr};
+    }
+
 private:
     // Фиктивный узел, используется для вставки "перед первым элементом"
     Node head_;
@@ -209,7 +298,91 @@ void Test1() {
     }
 }
 
+void Test2() {
+    // Итерирование по пустому списку
+    {
+        SingleLinkedList<int> list;
+        // Константная ссылка для доступа к константным версиям begin()/end()
+        const auto& const_list = list;
+
+        // Итераторы begin и end у пустого диапазона равны друг другу
+        assert(list.begin() == list.end());
+        assert(const_list.begin() == const_list.end());
+        assert(list.cbegin() == list.cend());
+        assert(list.cbegin() == const_list.begin());
+        assert(list.cend() == const_list.end());
+    }
+
+    // Итерирование по непустому списку
+    {
+        SingleLinkedList<int> list;
+        const auto& const_list = list;
+
+        list.PushFront(1);
+        assert(list.GetSize() == 1u);
+        assert(!list.IsEmpty());
+
+        assert(const_list.begin() != const_list.end());
+        assert(const_list.cbegin() != const_list.cend());
+        assert(list.begin() != list.end());
+
+        assert(const_list.begin() == const_list.cbegin());
+
+        assert(*list.cbegin() == 1);
+        *list.begin() = -1;
+        assert(*list.cbegin() == -1);
+
+        const auto old_begin = list.cbegin();
+        list.PushFront(2);
+        assert(list.GetSize() == 2);
+
+        const auto new_begin = list.cbegin();
+        assert(new_begin != old_begin);
+        // Проверка прединкремента
+        {
+            auto new_begin_copy(new_begin);
+            assert((++(new_begin_copy)) == old_begin);
+        }
+        // Проверка постинкремента
+        {
+            auto new_begin_copy(new_begin);
+            assert(((new_begin_copy)++) == new_begin);
+            assert(new_begin_copy == old_begin);
+        }
+        // Итератор, указывающий на позицию после последнего элемента, равен итератору end()
+        {
+            auto old_begin_copy(old_begin);
+            assert((++old_begin_copy) == list.end());
+        }
+    }
+    // Преобразование итераторов
+    {
+        SingleLinkedList<int> list;
+        list.PushFront(1);
+        // Конструирование ConstIterator из Iterator
+        SingleLinkedList<int>::ConstIterator const_it(list.begin());
+        assert(const_it == list.cbegin());
+        assert(*const_it == *list.cbegin());
+
+        SingleLinkedList<int>::ConstIterator const_it1;
+        // Присваивание ConstIterator'у значения Iterator
+        const_it1 = list.begin();
+        assert(const_it1 == const_it);
+    }
+    // Проверка оператора ->
+    {
+        using namespace std;
+        SingleLinkedList<std::string> string_list;
+
+        string_list.PushFront("one"s);
+        assert(string_list.cbegin()->length() == 3u);
+        string_list.begin()->push_back('!');
+        assert(*string_list.begin() == "one!"s);
+    }
+}
+
 int main() {
     Test0();
     Test1();
+    Test2();
 }
