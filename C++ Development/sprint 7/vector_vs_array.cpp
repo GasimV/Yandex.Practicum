@@ -2,6 +2,7 @@
 #include <iostream>
 #include <array>
 #include <vector>
+#include <algorithm>
 
 using namespace std;
 
@@ -57,7 +58,8 @@ int main() {
     {
         LOG_DURATION("array");
         for (int i = 0; i < COUNT; ++i) {
-            BuildArray(i);
+            auto numbers = BuildArray(i);
+            std::sort(begin(numbers), end(numbers));
         }
     }
 
