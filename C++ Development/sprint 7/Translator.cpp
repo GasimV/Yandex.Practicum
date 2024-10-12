@@ -60,6 +60,7 @@ void TestSimple() {
     // the vector grows and requires more memory. 
     // Reallocation may move all the elements of the vector to a new memory location, which 
     // will make any existing string_views in dictionaries invalid (since they point to old memory that no longer exists).
+    // Replace the vector with deque to make the code more effective and error-free in combination with the std::string_view!
     assert(translator.TranslateForward("okno"s) == "window"s);
     assert(translator.TranslateBackward("table"s) == "stol"s);
     assert(translator.TranslateForward("table"s) == ""s);
