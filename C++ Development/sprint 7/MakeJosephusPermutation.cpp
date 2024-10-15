@@ -4,15 +4,14 @@
 #include <vector>
 #include <cstdint>
 #include <list>
+#include <iterator>
 
 using namespace std;
 
 template <typename RandomIt>
 void MakeJosephusPermutation(RandomIt first, RandomIt last, uint32_t step_size) {
-    list<typename RandomIt::value_type> pool;
-    for (auto it = first; it != last; ++it) {
-        pool.push_back(std::move(*it));
-    }
+    list<typename RandomIt::value_type> pool(make_move_iterator(first), make_move_iterator(last));
+
     auto cur_pos = pool.begin();
     while (!pool.empty()) {
         *(first++) = std::move(*cur_pos);
