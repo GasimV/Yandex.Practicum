@@ -2,6 +2,7 @@
 #include <cassert>
 #include <string>
 #include <vector>
+#include <iterator>
 
 using namespace std;
 
@@ -31,11 +32,9 @@ vector<Sentence<Token>> SplitIntoSentences(vector<Token> tokens) {
     while (sentence_begin != tokens.end()) {
         auto sentence_end = FindSentenceEnd(sentence_begin, tokens.end());
 
-        Sentence<Token> sentence;
-        sentence.reserve(distance(sentence_begin, sentence_end)); // Оптимизация: резервируем память
-        move(sentence_begin, sentence_end, back_inserter(sentence));
+        // Используем make_move_iterator для перемещения элементов
+        sentences.emplace_back(make_move_iterator(sentence_begin), make_move_iterator(sentence_end));
 
-        sentences.push_back(move(sentence));
         sentence_begin = sentence_end;
     }
     return sentences;
