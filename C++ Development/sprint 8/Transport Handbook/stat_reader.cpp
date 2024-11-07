@@ -4,6 +4,11 @@
 #include <unordered_set>
 #include "geo.h"
 
+namespace transport_catalogue_app::io {
+
+using transport_catalogue_app::core::TransportCatalogue;
+using transport_catalogue_app::detail::ComputeDistance;
+
 void ParseAndPrintStat(const TransportCatalogue& transport_catalogue, std::string_view request, std::ostream& output) {
     if (request.substr(0, 4) == "Bus ") {
         std::string bus_name{request.substr(4)};
@@ -44,3 +49,5 @@ void ParseAndPrintStat(const TransportCatalogue& transport_catalogue, std::strin
         }
     }
 }
+
+} // namespace transport_catalogue_app::io

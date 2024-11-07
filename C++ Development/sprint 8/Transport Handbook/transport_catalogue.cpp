@@ -3,6 +3,8 @@
 #include <cmath>
 #include <algorithm>
 
+namespace transport_catalogue_app::core {
+
 void TransportCatalogue::AddStop(const std::string& name, Coordinates coords) {
     stops_.emplace_back(Stop{name, coords});
     stopname_to_stop_[stops_.back().name] = &stops_.back();
@@ -43,3 +45,5 @@ std::optional<std::set<std::string>> TransportCatalogue::GetBusesForStop(const s
 
     return stop_to_buses_.at(stop); // Return buses passing through the stop
 }
+
+} // namespace transport_catalogue_app::core

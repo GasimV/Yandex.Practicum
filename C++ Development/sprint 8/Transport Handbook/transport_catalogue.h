@@ -1,5 +1,4 @@
 #pragma once
-
 #include "geo.h"
 #include <unordered_map>
 #include <string>
@@ -8,6 +7,10 @@
 #include <string_view>
 #include <optional>
 #include <set>
+
+namespace transport_catalogue_app::core {
+
+using transport_catalogue_app::detail::Coordinates;
 
 struct Stop {
     std::string name;
@@ -32,5 +35,7 @@ private:
     std::deque<Route> routes_;
     std::unordered_map<std::string_view, const Stop*> stopname_to_stop_;
     std::unordered_map<std::string_view, const Route*> routename_to_route_;
-    std::unordered_map<const Stop*, std::set<std::string>> stop_to_buses_; // New index for stop-to-buses
+    std::unordered_map<const Stop*, std::set<std::string>> stop_to_buses_;
 };
+
+} // namespace transport_catalogue_app::core

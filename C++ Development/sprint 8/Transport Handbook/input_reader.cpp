@@ -5,6 +5,11 @@
 #include <iterator>
 #include <iostream>
 
+namespace transport_catalogue_app::io {
+
+using transport_catalogue_app::core::TransportCatalogue;
+using transport_catalogue_app::detail::Coordinates;
+
 /**
  * Парсит строку вида "10.123,  -30.1837" и возвращает пару координат (широта, долгота)
  */
@@ -121,3 +126,5 @@ void InputReader::ApplyCommands(TransportCatalogue& catalogue) const {
         }
     }
 }
+
+} // namespace transport_catalogue_app::io
