@@ -103,4 +103,5 @@ void TestCow() {
 int main() {
     TestCow();
     TestCpp();
+    return 0;
 }
