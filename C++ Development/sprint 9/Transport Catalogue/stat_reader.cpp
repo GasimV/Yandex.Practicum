@@ -20,8 +20,8 @@ void PrintBusInfo(const TransportCatalogue& catalogue, std::string_view bus_name
     output << "Bus " << bus_name << ": "
            << stats.total_stops << " stops on route, "
            << stats.unique_stops << " unique stops, "
-           << std::fixed << std::setprecision(6) << stats.route_length
-           << " route length, " << stats.curvature << " curvature\n";
+           << static_cast<int>(stats.route_length) << " route length, "
+           << std::fixed << std::setprecision(5) << stats.curvature << " curvature\n";
 }
 
 // Helper function to print stop information

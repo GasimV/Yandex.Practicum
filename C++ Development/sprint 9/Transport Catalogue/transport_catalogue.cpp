@@ -22,6 +22,10 @@ void TransportCatalogue::AddRoute(const std::string& name, const std::vector<std
         stop_to_buses_[stop].insert(name); // Update the stop-to-buses index
     }
 
+    if (!is_cyclic && !route.stops.empty()) {
+        route.stops.insert(route.stops.end(), std::next(route.stops.rbegin()), route.stops.rend());
+    }
+
     routes_.push_back(std::move(route));
     routename_to_route_[routes_.back().name] = &routes_.back();
 }
@@ -78,7 +82,7 @@ TransportCatalogue::RouteStats TransportCatalogue::GetRouteStatistics(std::strin
     }
     unique_stops.insert(route->stops.back()->name);
 
-    double curvature = (geo_distance > 0) ? actual_distance / geo_distance : 0;
+    double curvature = (geo_distance > 0) ? actual_distance / geo_distance : 1.0;
 
     return {
         static_cast<int>(route->stops.size()),

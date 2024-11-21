@@ -86,19 +86,11 @@ CommandDescription ParseCommandDescription(std::string_view line) {
         return {};
     }
 
-    auto space_pos = line.find(' ');
-    if (space_pos >= colon_pos) {
-        return {};
-    }
+    auto command = std::string(line.substr(0, line.find(' ')));
+    auto id = std::string(Trim(line.substr(command.size() + 1, colon_pos - command.size() - 1)));
+    auto description = std::string(Trim(line.substr(colon_pos + 1)));
 
-    auto not_space = line.find_first_not_of(' ', space_pos);
-    if (not_space >= colon_pos) {
-        return {};
-    }
-
-    return {std::string(line.substr(0, space_pos)),
-            std::string(line.substr(not_space, colon_pos - not_space)),
-            std::string(line.substr(colon_pos + 1))};
+    return {command, id, description};
 }
 
 void InputReader::ParseLine(std::string_view line) {
@@ -165,6 +157,10 @@ void InputReader::ApplyCommands(TransportCatalogue& catalogue) const {
                 const auto* to_stop = catalogue.GetStopInfo(to_stop_name);
                 if (to_stop) {
                     catalogue.SetDistance(from_stop, to_stop, distance);
+                    // Optionally set reverse distance if not already set
+                    if (catalogue.GetDistance(to_stop, from_stop) == 0) {
+                        catalogue.SetDistance(to_stop, from_stop, distance);
+                    }
                 }
             }
         }
