@@ -105,16 +105,13 @@ std::vector<std::pair<std::string_view, int>> ParseDistances(std::string_view di
 
     size_t pos = 0;
     while (pos < distances_part.size()) {
-        // Find the next "m to "
         auto m_pos = distances_part.find("m to ", pos);
         if (m_pos == distances_part.npos) {
             break;
         }
 
-        // Extract the distance
         int distance = std::stoi(std::string(distances_part.substr(pos, m_pos - pos)));
 
-        // Extract the stop name
         auto stop_pos = m_pos + 5; // "m to " is 5 characters long
         auto stop_end = distances_part.find_first_of(',', stop_pos);
         if (stop_end == distances_part.npos) {
@@ -124,7 +121,6 @@ std::vector<std::pair<std::string_view, int>> ParseDistances(std::string_view di
         std::string_view stop_name = distances_part.substr(stop_pos, stop_end - stop_pos);
         distances.emplace_back(stop_name, distance);
 
-        // Move to the next entry
         pos = stop_end + 1;
     }
 
@@ -136,7 +132,8 @@ void InputReader::ApplyCommands(TransportCatalogue& catalogue) const {
     for (const auto& command : commands_) {
         if (command.command == "Stop") {
             auto colon_pos = command.description.find(',');
-            auto coords = ParseCoordinates(command.description.substr(0, colon_pos));
+            auto coords = ParseCoordinates(command.description.substr(0, command.description.find(',', command.description.find(',') + 1)));
+            
             catalogue.AddStop(command.id, coords);
         }
     }
@@ -145,11 +142,11 @@ void InputReader::ApplyCommands(TransportCatalogue& catalogue) const {
     for (const auto& command : commands_) {
         if (command.command == "Stop") {
             auto colon_pos = command.description.find(',');
-            auto distances_part = command.description.substr(colon_pos + 1);
+            auto distances_part = command.description.substr(command.description.find(',', command.description.find(',') + 1) + 1);
 
             const auto* from_stop = catalogue.GetStopInfo(command.id);
             if (!from_stop) {
-                continue; // Skip undefined stops
+                continue;
             }
 
             auto distances = ParseDistances(distances_part);
@@ -157,10 +154,13 @@ void InputReader::ApplyCommands(TransportCatalogue& catalogue) const {
                 const auto* to_stop = catalogue.GetStopInfo(to_stop_name);
                 if (to_stop) {
                     catalogue.SetDistance(from_stop, to_stop, distance);
-                    // Optionally set reverse distance if not already set
+
                     if (catalogue.GetDistance(to_stop, from_stop) == 0) {
                         catalogue.SetDistance(to_stop, from_stop, distance);
                     }
+                } else {
+                    std::cout << "[ApplyCommands] Destination Stop not found: \"" 
+                              << to_stop_name << "\"\n";
                 }
             }
         }
