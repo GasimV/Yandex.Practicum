@@ -70,14 +70,12 @@ std::vector<std::string_view> Split(std::string_view string, char delim) {
  */
 std::vector<std::string_view> ParseRoute(std::string_view route) {
     if (route.find('>') != route.npos) {
+        // Cyclic route
         return Split(route, '>');
     }
 
-    auto stops = Split(route, '-');
-    std::vector<std::string_view> results(stops.begin(), stops.end());
-    results.insert(results.end(), std::next(stops.rbegin()), stops.rend());
-
-    return results;
+    // Non-cyclic route
+    return Split(route, '-');
 }
 
 CommandDescription ParseCommandDescription(std::string_view line) {
