@@ -63,6 +63,24 @@ private:
     virtual void RenderObject(const RenderContext& context) const = 0;
 };
 
+class ObjectContainer {
+public:
+    virtual void AddPtr(std::unique_ptr<Object>&& obj) = 0;
+
+    template <typename Obj>
+    void Add(Obj obj) {
+        AddPtr(std::make_unique<Obj>(std::move(obj)));
+    }
+
+    virtual ~ObjectContainer() = default;
+};
+
+class Drawable {
+public:
+    virtual void Draw(ObjectContainer& container) const = 0;
+    virtual ~Drawable() = default;
+};
+
 /*
  * Класс Circle моделирует элемент <circle> для отображения круга
  * https://developer.mozilla.org/en-US/docs/Web/SVG/Element/circle
@@ -129,23 +147,10 @@ private:
     std::string data_;
 };
 
-class Document {
+class Document : public ObjectContainer {
 public:
-    /*
-     Метод Add добавляет в svg-документ любой объект-наследник svg::Object.
-     Пример использования:
-     Document doc;
-     doc.Add(Circle().SetCenter({20, 30}).SetRadius(15));
-    */
-    // void Add(???);
-
-    template <typename Obj>
-    void Add(Obj obj) {
-        objects_.emplace_back(std::make_unique<Obj>(std::move(obj)));
-    }
-
     // Добавляет в svg-документ объект-наследник svg::Object
-    void AddPtr(std::unique_ptr<Object>&& obj);
+    void AddPtr(std::unique_ptr<Object>&& obj) override;
 
     // Выводит в ostream svg-представление документа
     void Render(std::ostream& out) const;
