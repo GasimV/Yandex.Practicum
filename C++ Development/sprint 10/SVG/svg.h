@@ -5,9 +5,36 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <optional>
 
 namespace svg {
 
+using Color = std::string;
+inline const Color NoneColor{"none"};
+
+// Перечисление Enum, представляющее различные стили окончания строки
+enum class StrokeLineCap {
+    BUTT,
+    ROUND,
+    SQUARE
+};
+
+// Перечисление Enum, представляющее различные стили соединения линий
+enum class StrokeLineJoin {
+    ARCS,
+    BEVEL,
+    MITER,
+    MITER_CLIP,
+    ROUND,
+};
+
+// Перегрузить оператор для вывода StrokeLineCap в виде строки
+std::ostream& operator<<(std::ostream& out, StrokeLineCap line_cap);
+
+// Перегрузить оператор для вывода StrokeLineJoin в виде строки
+std::ostream& operator<<(std::ostream& out, StrokeLineJoin line_join);
+
+// Структура, представляющая точку в двумерном пространстве
 struct Point {
     Point() = default;
     Point(double x, double y)
@@ -18,10 +45,7 @@ struct Point {
     double y = 0;
 };
 
-/*
- * Вспомогательная структура, хранящая контекст для вывода SVG-документа с отступами.
- * Хранит ссылку на поток вывода, текущее значение и шаг отступа при выводе элемента
- */
+// Структура для управления контекстом рендеринга с отступами
 struct RenderContext {
     RenderContext(std::ostream& out)
         : out(out) {
@@ -33,10 +57,12 @@ struct RenderContext {
         , indent(indent) {
     }
 
+    // Возвращает новый RenderContext с увеличенным отступом
     RenderContext Indented() const {
         return {out, indent_step, indent + indent_step};
     }
 
+    // Отображает текущий уровень отступа
     void RenderIndent() const {
         for (int i = 0; i < indent; ++i) {
             out.put(' ');
@@ -48,11 +74,7 @@ struct RenderContext {
     int indent = 0;
 };
 
-/*
- * Абстрактный базовый класс Object служит для унифицированного хранения
- * конкретных тегов SVG-документа
- * Реализует паттерн "Шаблонный метод" для вывода содержимого тега
- */
+// Абстрактный базовый класс для всех объектов SVG
 class Object {
 public:
     void Render(const RenderContext& context) const;
@@ -63,6 +85,7 @@ private:
     virtual void RenderObject(const RenderContext& context) const = 0;
 };
 
+// Абстрактный базовый класс для контейнера объектов SVG
 class ObjectContainer {
 public:
     virtual void AddPtr(std::unique_ptr<Object>&& obj) = 0;
@@ -75,17 +98,76 @@ public:
     virtual ~ObjectContainer() = default;
 };
 
+// Интерфейс для рисуемых объектов
 class Drawable {
 public:
     virtual void Draw(ObjectContainer& container) const = 0;
     virtual ~Drawable() = default;
 };
 
-/*
- * Класс Circle моделирует элемент <circle> для отображения круга
- * https://developer.mozilla.org/en-US/docs/Web/SVG/Element/circle
- */
-class Circle final : public Object {
+// Класс для управления свойствами пути, такими как цвет заливки, цвет обводки и т. д.
+template <typename Owner>
+class PathProps {
+private:
+    std::optional<Color> fill_color_;
+    std::optional<Color> stroke_color_;
+    std::optional<double> stroke_width_;
+    std::optional<StrokeLineCap> stroke_linecap_;
+    std::optional<StrokeLineJoin> stroke_linejoin_;
+
+public:
+    Owner& SetFillColor(Color color) {
+        fill_color_ = std::move(color);
+        return static_cast<Owner&>(*this);
+    }
+
+    Owner& SetStrokeColor(Color color) {
+        stroke_color_ = std::move(color);
+        return static_cast<Owner&>(*this);
+    }
+
+    Owner& SetStrokeWidth(double width) {
+        stroke_width_ = width;
+        return static_cast<Owner&>(*this);
+    }
+
+    Owner& SetStrokeLineCap(StrokeLineCap line_cap) {
+        stroke_linecap_ = line_cap;
+        return static_cast<Owner&>(*this);
+    }
+
+    Owner& SetStrokeLineJoin(StrokeLineJoin line_join) {
+        stroke_linejoin_ = line_join;
+        return static_cast<Owner&>(*this);
+    }
+
+protected:
+    // Отображает свойства пути как атрибуты в теге SVG
+    void RenderAttrs(std::ostream& out) const {
+        if (fill_color_) {
+            out << " fill=\"" << *fill_color_ << "\"";
+        }
+
+        if (stroke_color_) {
+            out << " stroke=\"" << *stroke_color_ << "\"";
+        }
+
+        if (stroke_width_) {
+            out << " stroke-width=\"" << *stroke_width_ << "\"";
+        }
+
+        if (stroke_linecap_) {
+            out << " stroke-linecap=\"" << *stroke_linecap_ << "\"";
+        }
+
+        if (stroke_linejoin_) {
+            out << " stroke-linejoin=\"" << *stroke_linejoin_ << "\"";
+        }
+    }
+};
+
+// Класс, представляющий круг SVG
+class Circle final : public Object, public PathProps<Circle> {
 public:
     Circle& SetCenter(Point center);
     Circle& SetRadius(double radius);
@@ -97,11 +179,8 @@ private:
     double radius_ = 1.0;
 };
 
-/*
- * Класс Polyline моделирует элемент <polyline> для отображения ломаных линий
- * https://developer.mozilla.org/en-US/docs/Web/SVG/Element/polyline
- */
-class Polyline final : public Object {
+// Класс, представляющий ломаную SVG-линию
+class Polyline final : public Object, public PathProps<Polyline> {
 public:
     // Добавляет очередную вершину к ломаной линии
     Polyline& AddPoint(Point point);
@@ -112,11 +191,8 @@ private:
     std::vector<Point> points_;
 };
 
-/*
- * Класс Text моделирует элемент <text> для отображения текста
- * https://developer.mozilla.org/en-US/docs/Web/SVG/Element/text
- */
-class Text final : public Object {
+// Класс, представляющий текстовый элемент SVG
+class Text final : public Object, public PathProps<Text> {
 public:
     // Задаёт координаты опорной точки (атрибуты x и y)
     Text& SetPosition(Point pos);
@@ -147,6 +223,7 @@ private:
     std::string data_;
 };
 
+// Класс, представляющий документ SVG, который может содержать несколько объектов SVG
 class Document : public ObjectContainer {
 public:
     // Добавляет в svg-документ объект-наследник svg::Object
