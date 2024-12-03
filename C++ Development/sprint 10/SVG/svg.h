@@ -6,10 +6,26 @@
 #include <string>
 #include <vector>
 #include <optional>
+#include <variant>
 
 namespace svg {
 
-using Color = std::string;
+// Структура, представляющая цвет RGB
+struct Rgb {
+    uint8_t red = 0;
+    uint8_t green = 0;
+    uint8_t blue = 0;
+};
+
+// Структура, представляющая цвет RGBA
+struct Rgba {
+    uint8_t red = 0;
+    uint8_t green = 0;
+    uint8_t blue = 0;
+    double opacity = 1.0;
+};
+
+using Color = std::variant<std::monostate, std::string, Rgb, Rgba>;
 inline const Color NoneColor{"none"};
 
 // Перечисление Enum, представляющее различные стили окончания строки
@@ -33,6 +49,9 @@ std::ostream& operator<<(std::ostream& out, StrokeLineCap line_cap);
 
 // Перегрузить оператор для вывода StrokeLineJoin в виде строки
 std::ostream& operator<<(std::ostream& out, StrokeLineJoin line_join);
+
+// Перегруженный оператор для вывода цвета в виде строки
+std::ostream& operator<<(std::ostream& out, const Color& color);
 
 // Структура, представляющая точку в двумерном пространстве
 struct Point {

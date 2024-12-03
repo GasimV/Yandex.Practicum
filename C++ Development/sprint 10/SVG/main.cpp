@@ -101,30 +101,35 @@ void DrawPicture(const Container& container, svg::ObjectContainer& target) {
     DrawPicture(begin(container), end(container), target);
 }
 
+// Функция для выполнения линейной интерполяции между двумя значениями
+uint8_t Lerp(uint8_t from, uint8_t to, double t) {
+    return static_cast<uint8_t>(std::round((to - from) * t + from));
+}
+
 int main() {
-    using namespace shapes;
+    // Определяем начальный и конечный цвета для градиента
+    Rgb start_color{0, 255, 30}; // Ярко-зеленый
+    Rgb end_color{20, 20, 150}; // Темно-синий
 
-    vector<unique_ptr<svg::Drawable>> picture;
-    picture.emplace_back(make_unique<Triangle>(Point{100, 20}, Point{120, 50}, Point{80, 40}));
-    picture.emplace_back(make_unique<Star>(Point{50.0, 20.0}, 10.0, 4.0, 5));
-    picture.emplace_back(make_unique<Snowman>(Point{30, 20}, 10.0));
+    const int num_circles = 10; // Количество кругов для рисования
+    Document doc;
+    for (int i = 0; i < num_circles; ++i) {
+        // Рассчитаем коэффициент интерполяции (t) для каждого круга
+        const double t = double(i) / (num_circles - 1);
+        // Интерполируем цвет между start_color и end_color
+        Rgb fill_color{
+            static_cast<uint8_t>(Lerp(start_color.red, end_color.red, t)),
+            static_cast<uint8_t>(Lerp(start_color.green, end_color.green, t)),
+            static_cast<uint8_t>(Lerp(start_color.blue, end_color.blue, t))
+        };
 
-    svg::Document doc;
-    DrawPicture(picture, doc);
-
-    const Text base_text =  //
-        Text()
-            .SetFontFamily("Verdana"s)
-            .SetFontSize(12)
-            .SetPosition({10, 100})
-            .SetData("Happy New Year!"s);
-    doc.Add(Text{base_text}
-                .SetStrokeColor("yellow"s)
-                .SetFillColor("yellow"s)
-                .SetStrokeLineJoin(StrokeLineJoin::ROUND)
-                .SetStrokeLineCap(StrokeLineCap::ROUND)
-                .SetStrokeWidth(3));
-    doc.Add(Text{base_text}.SetFillColor("red"s));
-
+        // Добавляем в документ круг с интерполированным цветом
+        doc.Add(Circle()
+                    .SetFillColor(fill_color)
+                    .SetStrokeColor("black"s) // Черный цвет обводки
+                    .SetCenter({i * 20.0 + 40, 40.0}) // Располагаем каждый круг горизонтально
+                    .SetRadius(15)); // Устанавливаем радиус круга
+    }
+    // Выводим документ на стандартный вывод
     doc.Render(cout);
 }

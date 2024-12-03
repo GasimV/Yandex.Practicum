@@ -26,6 +26,25 @@ std::ostream& operator<<(std::ostream& out, StrokeLineJoin line_join) {
     return out;
 }
 
+// Перегруженный оператор для вывода цвета в виде строки
+std::ostream& operator<<(std::ostream& out, const Color& color) {
+    std::visit([&out](const auto& value) {
+        using T = std::decay_t<decltype(value)>;
+        if constexpr (std::is_same_v<T, std::monostate>) {
+            out << "none";
+        } else if constexpr (std::is_same_v<T, std::string>) {
+            out << value;
+        } else if constexpr (std::is_same_v<T, Rgb>) {
+            out << "rgb(" << static_cast<int>(value.red) << "," << static_cast<int>(value.green) << "," 
+                << static_cast<int>(value.blue) << ")";
+        } else if constexpr (std::is_same_v<T, Rgba>) {
+            out << "rgba(" << static_cast<int>(value.red) << "," << static_cast<int>(value.green) << "," 
+                << static_cast<int>(value.blue) << "," << value.opacity << ")";
+        }
+    }, color);
+    return out;
+}
+
 // Метод Render для Object вызывает метод RenderObject для производных классов
 void Object::Render(const RenderContext& context) const {
     context.RenderIndent();
