@@ -10,7 +10,7 @@
 
 namespace transport_catalogue_app::core {
 
-using geo::Coordinates;
+using transport_catalogue_app::detail::Coordinates;
 
 struct Stop {
     std::string name;

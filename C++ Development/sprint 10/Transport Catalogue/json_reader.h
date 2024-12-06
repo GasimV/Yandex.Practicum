@@ -1,11 +1,24 @@
 #pragma once
 
-#include "transport_catalogue.h"
 #include "json.h"
+#include "transport_catalogue.h"
+#include "request_handler.h"
 
-namespace json_reader {
+namespace transport_catalogue_app::io {
 
-void ProcessBaseRequests(transport_catalogue_app::core::TransportCatalogue& catalogue, const json::Node& base_requests);
-json::Node ProcessStatRequests(const transport_catalogue_app::core::TransportCatalogue& catalogue, const json::Node& stat_requests);
+class JsonReader {
+public:
+    JsonReader(transport_catalogue_app::core::TransportCatalogue& catalogue);
 
-} // namespace json_reader
+    // Reads and processes base_requests to fill the catalogue.
+    void ProcessBaseRequests(const json::Array& base_requests);
+
+    // Reads and processes stat_requests, returning a JSON array of responses.
+    json::Array ProcessStatRequests(const json::Array& stat_requests);
+
+private:
+    transport_catalogue_app::core::TransportCatalogue& catalogue_;
+    transport_catalogue_app::core::RequestHandler request_handler_;
+};
+
+} // namespace transport_catalogue_app::io

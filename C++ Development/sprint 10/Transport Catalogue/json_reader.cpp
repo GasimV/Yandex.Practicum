@@ -1,98 +1,68 @@
 #include "json_reader.h"
-#include "geo.h"
-#include <string_view>
-#include <iostream>
 
-namespace json_reader {
+namespace transport_catalogue_app::io {
 
-using namespace transport_catalogue_app::core;
+JsonReader::JsonReader(transport_catalogue_app::core::TransportCatalogue& catalogue)
+    : catalogue_(catalogue), request_handler_(catalogue) {}
 
-void ProcessBaseRequests(TransportCatalogue& catalogue, const json::Node& base_requests) {
-    for (const auto& request_node : base_requests.AsArray()) {
-        const auto& request = request_node.AsMap();
-        std::string type = request.at("type").AsString();
-
+void JsonReader::ProcessBaseRequests(const json::Array& base_requests) {
+    // First pass: add stops and coordinates
+    for (const auto& base_request : base_requests) {
+        const auto& request_map = base_request.AsMap();
+        const std::string& type = request_map.at("type").AsString();
         if (type == "Stop") {
-            std::string name = request.at("name").AsString();
-            double latitude = request.at("latitude").AsDouble();
-            double longitude = request.at("longitude").AsDouble();
-
-            catalogue.AddStop(name, {latitude, longitude});
-
-            if (request.count("road_distances")) {
-                const auto& distances = request.at("road_distances").AsMap();
-                for (const auto& [neighbour_name, distance_node] : distances) {
-                    const Stop* from = catalogue.GetStopInfo(name);
-                    const Stop* to = catalogue.GetStopInfo(neighbour_name);
-                    int distance = distance_node.AsInt();
-                    if (from && to) {
-                        catalogue.SetDistance(from, to, distance);
-                    }
-                }
-            }
-        } else if (type == "Bus") {
-            std::string name = request.at("name").AsString();
-            const auto& stops = request.at("stops").AsArray();
-            std::vector<std::string_view> stop_names;
-            for (const auto& stop_node : stops) {
-                stop_names.push_back(stop_node.AsString());
-            }
-            bool is_roundtrip = request.at("is_roundtrip").AsBool();
-
-            catalogue.AddRoute(name, stop_names, is_roundtrip);
+            const std::string& name = request_map.at("name").AsString();
+            double latitude = request_map.at("latitude").AsDouble();
+            double longitude = request_map.at("longitude").AsDouble();
+            catalogue_.AddStop(name, {latitude, longitude});
         }
     }
-}
 
-json::Node ProcessStatRequests(const TransportCatalogue& catalogue, const json::Node& stat_requests) {
-    json::Array responses;
+    // Second pass: add distances between stops
+    for (const auto& base_request : base_requests) {
+        const auto& request_map = base_request.AsMap();
+        const std::string& type = request_map.at("type").AsString();
+        if (type == "Stop") {
+            const std::string& name = request_map.at("name").AsString();
+            const auto* from_stop = catalogue_.GetStopInfo(name);
+            for (const auto& [neighbor, distance_node] : request_map.at("road_distances").AsMap()) {
+                const int distance = distance_node.AsInt();
+                const auto* to_stop = catalogue_.GetStopInfo(neighbor);
+                if (to_stop) {
+                    catalogue_.SetDistance(from_stop, to_stop, distance);
+                }
+            }
+        }
+    }
 
-    for (const auto& request_node : stat_requests.AsArray()) {
-        const auto& request = request_node.AsMap();
-        int request_id = request.at("id").AsInt();
-        std::string type = request.at("type").AsString();
-
+    // Third pass: add bus routes
+    for (const auto& base_request : base_requests) {
+        const auto& request_map = base_request.AsMap();
+        const std::string& type = request_map.at("type").AsString();
         if (type == "Bus") {
-            std::string bus_name = request.at("name").AsString();
-            const Route* route = catalogue.GetRouteInfo(bus_name);
-            if (route) {
-                TransportCatalogue::RouteStats stats = catalogue.GetRouteStatistics(bus_name);
-                json::Dict response = {
-                    {"request_id", request_id},
-                    {"route_length", stats.route_length},
-                    {"stop_count", stats.total_stops},
-                    {"unique_stop_count", stats.unique_stops},
-                    {"curvature", stats.curvature}
-                };
-                responses.push_back(std::move(response));
-            } else {
-                responses.push_back(json::Dict{
-                    {"request_id", request_id},
-                    {"error_message", "not found"}
-                });
+            const std::string& name = request_map.at("name").AsString();
+            std::vector<std::string_view> stops;
+            for (const auto& stop_node : request_map.at("stops").AsArray()) {
+                stops.push_back(stop_node.AsString());
             }
-        } else if (type == "Stop") {
-            std::string stop_name = request.at("name").AsString();
-            const auto* buses = catalogue.GetBusesForStop(stop_name);
-            if (buses) {
-                json::Array bus_list;
-                for (const auto& bus_name : *buses) {
-                    bus_list.push_back(std::string(bus_name));
-                }
-                responses.push_back(json::Dict{
-                    {"request_id", request_id},
-                    {"buses", std::move(bus_list)}
-                });
-            } else {
-                responses.push_back(json::Dict{
-                    {"request_id", request_id},
-                    {"error_message", "not found"}
-                });
-            }
+            bool is_roundtrip = request_map.at("is_roundtrip").AsBool();
+            catalogue_.AddRoute(name, stops, is_roundtrip);
         }
     }
-
-    return json::Node(std::move(responses));
 }
 
-} // namespace json_reader
+json::Array JsonReader::ProcessStatRequests(const json::Array& stat_requests) {
+    json::Array responses;
+    for (const auto& stat_request : stat_requests) {
+        const auto& request_map = stat_request.AsMap();
+        const std::string& type = request_map.at("type").AsString();
+        if (type == "Stop") {
+            responses.push_back(request_handler_.HandleStopRequest(request_map));
+        } else if (type == "Bus") {
+            responses.push_back(request_handler_.HandleBusRequest(request_map));
+        }
+    }
+    return responses;
+}
+
+} // namespace transport_catalogue_app::io

@@ -1,5 +1,4 @@
 #include "transport_catalogue.h"
-#include "geo.h"
 #include <unordered_set>
 #include <cmath>
 #include <algorithm>
@@ -78,7 +77,7 @@ TransportCatalogue::RouteStats TransportCatalogue::GetRouteStatistics(std::strin
     double actual_distance = CalculateRouteDistance(route);
 
     for (size_t i = 0; i + 1 < route->stops.size(); ++i) {
-        geo_distance += geo::ComputeDistance(route->stops[i]->coordinates, route->stops[i + 1]->coordinates);
+        geo_distance += ComputeDistance(route->stops[i]->coordinates, route->stops[i + 1]->coordinates);
         unique_stops.insert(route->stops[i]->name);
     }
     unique_stops.insert(route->stops.back()->name);

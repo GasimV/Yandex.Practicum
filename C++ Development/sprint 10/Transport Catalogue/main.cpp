@@ -1,26 +1,34 @@
-#include "json_reader.h"
-#include "transport_catalogue.h"
 #include "json.h"
+#include "json_reader.h"
 #include <iostream>
 
-using namespace std;
-using namespace transport_catalogue_app::core;
+using namespace transport_catalogue_app;
 
 int main() {
-    // Считываем JSON из входного потока
-    json::Document doc = json::Load(cin);
+    try {
+        // Load input JSON from stdin.
+        auto doc = json::Load(std::cin);
+        const auto& root = doc.GetRoot().AsMap();
 
-    // Создаем транспортный справочник
-    TransportCatalogue catalogue;
+        // Create the transport catalogue.
+        core::TransportCatalogue catalogue;
 
-    // Обрабатываем запросы для создания базы данных транспортного справочника
-    json_reader::ProcessBaseRequests(catalogue, doc.GetRoot().AsMap().at("base_requests"));
+        // Create a JSON reader to parse requests.
+        io::JsonReader json_reader(catalogue);
 
-    // Обрабатываем запросы для получения статистики
-    json::Node responses = json_reader::ProcessStatRequests(catalogue, doc.GetRoot().AsMap().at("stat_requests"));
+        // Process base_requests.
+        json_reader.ProcessBaseRequests(root.at("base_requests").AsArray());
 
-    // Выводим результаты в виде JSON
-    json::Print(json::Document{responses}, cout);
+        // Process stat_requests and get responses.
+        auto responses = json_reader.ProcessStatRequests(root.at("stat_requests").AsArray());
+
+        // Print the responses as JSON to stdout.
+        json::Print(json::Document{responses}, std::cout);
+    } catch (const json::ParsingError& e) {
+        std::cerr << "Error parsing input: " << e.what() << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Exception: " << e.what() << std::endl;
+    }
 
     return 0;
 }
