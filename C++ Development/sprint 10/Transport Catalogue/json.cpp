@@ -206,42 +206,43 @@ Document Load(istream& input) {
 }
 
 // Вспомогательная функция для печати значения узла
-void PrintValue(const Node::Value& value, ostream& out);
+void PrintValue(const Node::Value& value, ostream& out, int indent = 0);
 
 // Печатает узел
-void PrintNode(const Node& node, ostream& out) {
-    PrintValue(node.GetValue(), out);
+void PrintNode(const Node& node, ostream& out, int indent = 0) {
+    PrintValue(node.GetValue(), out, indent);
 }
 
 // Выводит значение, хранящееся в узле
-void PrintValue(const Node::Value& value, ostream& out) {
-    visit([&out](const auto& val) {
+void PrintValue(const Node::Value& value, ostream& out, int indent) {
+    visit([&out, indent](const auto& val) {
         using T = decay_t<decltype(val)>;
         if constexpr (is_same_v<T, nullptr_t>) {
             out << "null";
         } else if constexpr (is_same_v<T, Array>) {
-            out << '[';
+            out << "[\n";
             bool first = true;
             for (const auto& item : val) {
                 if (!first) {
-                    out << ", ";
+                    out << ",\n";
                 }
                 first = false;
-                PrintNode(item, out);
+                out << string(indent + 2, ' ');
+                PrintNode(item, out, indent + 2);
             }
-            out << ']';
+            out << '\n' << string(indent, ' ') << ']';
         } else if constexpr (is_same_v<T, Dict>) {
-            out << '{';
+            out << "{\n";
             bool first = true;
             for (const auto& [key, node] : val) {
                 if (!first) {
-                    out << ", ";
+                    out << ",\n";
                 }
                 first = false;
-                out << '"' << key << "\": ";
-                PrintNode(node, out);
+                out << string(indent + 2, ' ') << '"' << key << "\": ";
+                PrintNode(node, out, indent + 2);
             }
-            out << '}';
+            out << '\n' << string(indent, ' ') << '}';
         } else if constexpr (is_same_v<T, bool>) {
             out << (val ? "true" : "false");
         } else if constexpr (is_same_v<T, int> || is_same_v<T, double>) {
@@ -276,7 +277,7 @@ void PrintValue(const Node::Value& value, ostream& out) {
 
 // Печатает весь документ
 void Print(const Document& doc, ostream& output) {
-    PrintNode(doc.GetRoot(), output);
+    PrintNode(doc.GetRoot(), output, 0);
 }
 
 }  // namespace json

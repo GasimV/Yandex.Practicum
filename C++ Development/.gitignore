@@ -12,6 +12,7 @@ Makefile
 cmake_install.cmake
 *.txt
 *.svg
+*.json
 
 # Ignore binary and object files
 *.o
