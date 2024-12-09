@@ -36,7 +36,7 @@ public:
         int total_stops;
         int unique_stops;
         double route_length;
-        double curvature; // Добавляем извилистость
+        double curvature;
     };
     
     void AddStop(const std::string& name, Coordinates coords);
@@ -49,6 +49,9 @@ public:
     void SetDistance(const Stop* from, const Stop* to, int distance);
     int GetDistance(const Stop* from, const Stop* to) const;
     double CalculateRouteDistance(const Route* route) const;
+
+    // Method to retrieve all routes
+    const std::unordered_map<std::string_view, const Route*>& GetAllRoutes() const;
 
 private:
     std::deque<Stop> stops_;

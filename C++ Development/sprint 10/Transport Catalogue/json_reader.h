@@ -3,6 +3,7 @@
 #include "json.h"
 #include "transport_catalogue.h"
 #include "request_handler.h"
+#include "map_renderer.h" // Include map_renderer to access RenderSettings
 
 namespace transport_catalogue_app::io {
 
@@ -15,6 +16,9 @@ public:
 
     // Reads and processes stat_requests, returning a JSON array of responses.
     json::Array ProcessStatRequests(const json::Array& stat_requests);
+
+    // Parses render_settings from JSON and returns a RenderSettings structure
+    map_renderer::RenderSettings ParseRenderSettings(const json::Node& render_settings_node) const;
 
 private:
     transport_catalogue_app::core::TransportCatalogue& catalogue_;

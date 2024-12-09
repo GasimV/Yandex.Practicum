@@ -22,11 +22,7 @@ void TransportCatalogue::AddRoute(const std::string& name, const std::vector<std
         stop_to_buses_[stop].insert(name); // Update the stop-to-buses index
     }
 
-    if (!is_cyclic && !route.stops.empty()) {
-        route.stops.insert(route.stops.end(), std::next(route.stops.rbegin()), route.stops.rend());
-    }
-
-    routes_.push_back(std::move(route));
+    routes_.emplace_back(std::move(route));
     routename_to_route_[routes_.back().name] = &routes_.back();
 }
 
@@ -77,8 +73,10 @@ TransportCatalogue::RouteStats TransportCatalogue::GetRouteStatistics(std::strin
     double actual_distance = CalculateRouteDistance(route);
 
     for (size_t i = 0; i + 1 < route->stops.size(); ++i) {
-        geo_distance += ComputeDistance(route->stops[i]->coordinates, route->stops[i + 1]->coordinates);
-        unique_stops.insert(route->stops[i]->name);
+        const Stop* from = route->stops[i];
+        const Stop* to = route->stops[i + 1];
+        geo_distance += ComputeDistance(from->coordinates, to->coordinates);
+        unique_stops.insert(from->name);
     }
     unique_stops.insert(route->stops.back()->name);
 
@@ -106,6 +104,11 @@ int TransportCatalogue::GetDistance(const Stop* from, const Stop* to) const {
         return it->second;
     }
     return 0;
+}
+
+// Implementation of GetAllRoutes
+const std::unordered_map<std::string_view, const Route*>& TransportCatalogue::GetAllRoutes() const {
+    return routename_to_route_;
 }
 
 } // namespace transport_catalogue_app::core
