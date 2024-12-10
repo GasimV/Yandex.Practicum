@@ -140,6 +140,11 @@ private:
 
     // Collects all coordinates used in the routes
     std::vector<transport_catalogue_app::detail::Coordinates> CollectRouteCoordinates() const;
+    
+    // Methods for additional rendering layers
+    void RenderRouteNames(svg::Document& doc) const;
+    void RenderStopSymbols(svg::Document& doc) const;
+    void RenderStopNames(svg::Document& doc) const;
 };
 
 } // namespace transport_catalogue_app::map_renderer

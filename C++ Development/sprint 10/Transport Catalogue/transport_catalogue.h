@@ -52,6 +52,8 @@ public:
 
     // Method to retrieve all routes
     const std::unordered_map<std::string_view, const Route*>& GetAllRoutes() const;
+    // Возвращает все остановки, входящие хотя бы в один маршрут
+    std::vector<const Stop*> GetAllStops() const;
 
 private:
     std::deque<Stop> stops_;

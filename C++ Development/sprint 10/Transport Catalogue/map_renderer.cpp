@@ -3,6 +3,9 @@
 #include <algorithm>
 #include <cmath>
 
+using transport_catalogue_app::core::Stop;
+using std::string_literals::operator""s; // Для использования "s" литералов
+
 namespace transport_catalogue_app::map_renderer {
 
 // Collects all coordinates from all routes
@@ -37,10 +40,11 @@ void MapRenderer::AssignRouteColors() {
     }
 }
 
-// Renders the map by drawing polylines for each route
+// Renders the entire map with all layers
 svg::Document MapRenderer::RenderMap() const {
     svg::Document doc;
 
+    // 1. Draw polylines for all routes
     for (size_t i = 0; i < sorted_route_names_.size(); ++i) {
         const std::string& route_name = sorted_route_names_[i];
         const auto* route = catalogue_.GetRouteInfo(route_name);
@@ -70,7 +74,134 @@ svg::Document MapRenderer::RenderMap() const {
         doc.Add(polyline);
     }
 
+    // 2. Draw route names
+    RenderRouteNames(doc);
+
+    // 3. Draw stop symbols (circles)
+    RenderStopSymbols(doc);
+
+    // 4. Draw stop names
+    RenderStopNames(doc);
+
     return doc;
+}
+
+// Helper method to render route names
+void MapRenderer::RenderRouteNames(svg::Document& doc) const {
+    // Iterate over sorted route names
+    for (size_t i = 0; i < sorted_route_names_.size(); ++i) {
+        const std::string& route_name = sorted_route_names_[i];
+        const auto* route = catalogue_.GetRouteInfo(route_name);
+        if (!route || route->stops.empty()) {
+            continue; // Skip routes with no stops
+        }
+
+        // Determine final stops
+        std::vector<const Stop*> final_stops;
+        if (route->is_cyclic) {
+            final_stops.push_back(route->stops.front());
+        } else {
+            final_stops.push_back(route->stops.front());
+            final_stops.push_back(route->stops.back());
+            // Если первый и последний остановки совпадают, избегаем дублирования
+            if (route->stops.front()->name == route->stops.back()->name) {
+                final_stops.pop_back();
+            }
+        }
+
+        // For each final stop, draw background and label
+        for (const auto* stop : final_stops) {
+            svg::Point stop_point = (*projector_)(stop->coordinates);
+
+            // Background text
+            svg::Text background_text;
+            background_text.SetPosition(stop_point)
+                           .SetOffset(settings_.bus_label_offset)
+                           .SetFontSize(settings_.bus_label_font_size)
+                           .SetFontFamily("Verdana"s)
+                           .SetFontWeight("bold"s)
+                           .SetFillColor(settings_.underlayer_color)
+                           .SetStrokeColor(settings_.underlayer_color)
+                           .SetStrokeWidth(settings_.underlayer_width)
+                           .SetStrokeLineCap(svg::StrokeLineCap::ROUND)
+                           .SetStrokeLineJoin(svg::StrokeLineJoin::ROUND)
+                           .SetData(route_name);
+            doc.Add(background_text);
+
+            // Label text
+            svg::Text label_text;
+            label_text.SetPosition(stop_point)
+                      .SetOffset(settings_.bus_label_offset)
+                      .SetFontSize(settings_.bus_label_font_size)
+                      .SetFontFamily("Verdana"s)
+                      .SetFontWeight("bold"s)
+                      .SetFillColor(route_colors_[i])
+                      .SetData(route_name);
+            doc.Add(label_text);
+        }
+    }
+}
+
+// Helper method to render stop symbols (circles)
+void MapRenderer::RenderStopSymbols(svg::Document& doc) const {
+    // Получаем все остановки, участвующие в маршрутах
+    std::vector<const transport_catalogue_app::core::Stop*> all_stops = catalogue_.GetAllStops();
+
+    // Сортируем остановки лексикографически по имени
+    std::sort(all_stops.begin(), all_stops.end(), [](const Stop* lhs, const Stop* rhs) {
+        return lhs->name < rhs->name;
+    });
+
+    // Рисуем круги для остановок
+    for (const auto* stop : all_stops) {
+        svg::Circle circle;
+        svg::Point stop_point = (*projector_)(stop->coordinates);
+        circle.SetCenter(stop_point)
+              .SetRadius(settings_.stop_radius)
+              .SetFillColor("white"s);
+        doc.Add(circle);
+    }
+}
+
+void MapRenderer::RenderStopNames(svg::Document& doc) const {
+    // Получаем все остановки, участвующие в маршрутах
+    std::vector<const transport_catalogue_app::core::Stop*> all_stops = catalogue_.GetAllStops();
+
+    // Сортируем остановки лексикографически по имени
+    std::sort(all_stops.begin(), all_stops.end(), [](const Stop* lhs, const Stop* rhs) {
+        return lhs->name < rhs->name;
+    });
+
+    // Рисуем названия остановок
+    for (const auto* stop : all_stops) {
+        svg::Point stop_point = (*projector_)(stop->coordinates);
+
+        // Подложка текста
+        svg::Text background_text;
+        background_text.SetPosition(stop_point)
+                       .SetOffset(settings_.stop_label_offset)
+                       .SetFontSize(settings_.stop_label_font_size)
+                       .SetFontFamily("Verdana"s)
+                       // Не устанавливаем font-weight
+                       .SetFillColor(settings_.underlayer_color)
+                       .SetStrokeColor(settings_.underlayer_color)
+                       .SetStrokeWidth(settings_.underlayer_width)
+                       .SetStrokeLineCap(svg::StrokeLineCap::ROUND)
+                       .SetStrokeLineJoin(svg::StrokeLineJoin::ROUND)
+                       .SetData(stop->name);
+        doc.Add(background_text);
+
+        // Текстовое содержимое
+        svg::Text label_text;
+        label_text.SetPosition(stop_point)
+                  .SetOffset(settings_.stop_label_offset)
+                  .SetFontSize(settings_.stop_label_font_size)
+                  .SetFontFamily("Verdana"s)
+                  // Не устанавливаем font-weight
+                  .SetFillColor("black"s)
+                  .SetData(stop->name);
+        doc.Add(label_text);
+    }
 }
 
 } // namespace transport_catalogue_app::map_renderer

@@ -22,6 +22,8 @@ void TransportCatalogue::AddRoute(const std::string& name, const std::vector<std
         stop_to_buses_[stop].insert(name); // Update the stop-to-buses index
     }
 
+
+
     routes_.emplace_back(std::move(route));
     routename_to_route_[routes_.back().name] = &routes_.back();
 }
@@ -109,6 +111,19 @@ int TransportCatalogue::GetDistance(const Stop* from, const Stop* to) const {
 // Implementation of GetAllRoutes
 const std::unordered_map<std::string_view, const Route*>& TransportCatalogue::GetAllRoutes() const {
     return routename_to_route_;
+}
+    
+std::vector<const Stop*> TransportCatalogue::GetAllStops() const {
+    std::vector<const Stop*> all_stops;
+    for (const auto& [route_name, route_ptr] : routename_to_route_) {
+        for (const auto* stop : route_ptr->stops) {
+            all_stops.emplace_back(stop);
+        }
+    }
+    // Убираем дубликаты
+    std::sort(all_stops.begin(), all_stops.end());
+    all_stops.erase(std::unique(all_stops.begin(), all_stops.end()), all_stops.end());
+    return all_stops;
 }
 
 } // namespace transport_catalogue_app::core
