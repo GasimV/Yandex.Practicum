@@ -55,12 +55,25 @@ const Stop* TransportCatalogue::GetStopInfo(std::string_view name) const {
 }
 
 double TransportCatalogue::CalculateRouteDistance(const Route* route) const {
-    double total_distance = 0;
-    for (size_t i = 0; i + 1 < route->stops.size(); ++i) {
+    double total_distance = 0.0;
+    size_t stop_count = route->stops.size();
+
+    // Считаем прямой путь
+    for (size_t i = 0; i + 1 < stop_count; ++i) {
         const Stop* from = route->stops[i];
         const Stop* to = route->stops[i + 1];
         total_distance += GetDistance(from, to);
     }
+
+    // Если маршрут не кольцевой, считываем обратный путь
+    if (!route->is_cyclic && stop_count > 1) {
+        for (size_t i = stop_count - 1; i > 0; --i) {
+            const Stop* from = route->stops[i];
+            const Stop* to = route->stops[i - 1];
+            total_distance += GetDistance(from, to);
+        }
+    }
+
     return total_distance;
 }
 
@@ -70,22 +83,36 @@ TransportCatalogue::RouteStats TransportCatalogue::GetRouteStatistics(std::strin
         return {0, 0, 0.0, 0.0};
     }
 
+    std::vector<const Stop*> stop_sequence = route->stops;
+    
+    // Если маршрут не кольцевой, добавляем обратный путь
+    if (!route->is_cyclic && stop_sequence.size() > 1) {
+        // Добавляем остановки в обратном порядке, исключая последнюю, чтобы избежать дублирования
+        stop_sequence.insert(stop_sequence.end(), route->stops.rbegin() + 1, route->stops.rend());
+    }
+
+    int total_stops = static_cast<int>(stop_sequence.size());
     std::unordered_set<std::string_view> unique_stops;
     double geo_distance = 0.0;
-    double actual_distance = CalculateRouteDistance(route);
+    double actual_distance = 0.0;
 
-    for (size_t i = 0; i + 1 < route->stops.size(); ++i) {
-        const Stop* from = route->stops[i];
-        const Stop* to = route->stops[i + 1];
+    for (size_t i = 0; i + 1 < stop_sequence.size(); ++i) {
+        const Stop* from = stop_sequence[i];
+        const Stop* to = stop_sequence[i + 1];
         geo_distance += ComputeDistance(from->coordinates, to->coordinates);
+        actual_distance += GetDistance(from, to);
         unique_stops.insert(from->name);
     }
-    unique_stops.insert(route->stops.back()->name);
 
-    double curvature = (geo_distance > 0) ? actual_distance / geo_distance : 1.0;
+    // Добавляем последнюю остановку
+    if (!stop_sequence.empty()) {
+        unique_stops.insert(stop_sequence.back()->name);
+    }
+
+    double curvature = (geo_distance > 0) ? (actual_distance / geo_distance) : 1.0;
 
     return {
-        static_cast<int>(route->stops.size()),
+        total_stops,
         static_cast<int>(unique_stops.size()),
         actual_distance,
         curvature
@@ -118,6 +145,12 @@ std::vector<const Stop*> TransportCatalogue::GetAllStops() const {
     for (const auto& [route_name, route_ptr] : routename_to_route_) {
         for (const auto* stop : route_ptr->stops) {
             all_stops.emplace_back(stop);
+        }
+        // Если маршрут не кольцевой, добавляем обратный путь
+        if (!route_ptr->is_cyclic && route_ptr->stops.size() > 1) {
+            for (auto it = route_ptr->stops.rbegin() + 1; it != route_ptr->stops.rend(); ++it) {
+                all_stops.emplace_back(*it);
+            }
         }
     }
     // Убираем дубликаты

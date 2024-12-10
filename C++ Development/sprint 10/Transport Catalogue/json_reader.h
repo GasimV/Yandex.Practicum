@@ -3,7 +3,7 @@
 #include "json.h"
 #include "transport_catalogue.h"
 #include "request_handler.h"
-#include "map_renderer.h" // Include map_renderer to access RenderSettings
+#include "map_renderer.h"
 
 namespace transport_catalogue_app::io {
 
@@ -15,7 +15,7 @@ public:
     void ProcessBaseRequests(const json::Array& base_requests);
 
     // Reads and processes stat_requests, returning a JSON array of responses.
-    json::Array ProcessStatRequests(const json::Array& stat_requests);
+    json::Array ProcessStatRequests(const json::Array& stat_requests, const map_renderer::MapRenderer& renderer);
 
     // Parses render_settings from JSON and returns a RenderSettings structure
     map_renderer::RenderSettings ParseRenderSettings(const json::Node& render_settings_node) const;

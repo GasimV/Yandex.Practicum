@@ -1,6 +1,8 @@
 #include "json_reader.h"
 #include "map_renderer.h"
 
+#include <sstream>
+
 namespace transport_catalogue_app::io {
 
 JsonReader::JsonReader(transport_catalogue_app::core::TransportCatalogue& catalogue)
@@ -44,7 +46,7 @@ void JsonReader::ProcessBaseRequests(const json::Array& base_requests) {
             const std::string& name = request_map.at("name").AsString();
             std::vector<std::string_view> stops;
             for (const auto& stop_node : request_map.at("stops").AsArray()) {
-                stops.push_back(stop_node.AsString());
+                stops.emplace_back(stop_node.AsString());
             }
             bool is_roundtrip = request_map.at("is_roundtrip").AsBool();
             catalogue_.AddRoute(name, stops, is_roundtrip);
@@ -52,20 +54,33 @@ void JsonReader::ProcessBaseRequests(const json::Array& base_requests) {
     }
 }
 
-json::Array JsonReader::ProcessStatRequests(const json::Array& stat_requests) {
+json::Array JsonReader::ProcessStatRequests(const json::Array& stat_requests, const map_renderer::MapRenderer& renderer) {
     json::Array responses;
     for (const auto& stat_request : stat_requests) {
         const auto& request_map = stat_request.AsMap();
         const std::string& type = request_map.at("type").AsString();
+        int id = request_map.at("id").AsInt();
         if (type == "Stop") {
-            responses.push_back(request_handler_.HandleStopRequest(request_map));
+            responses.emplace_back(request_handler_.HandleStopRequest(request_map));
         } else if (type == "Bus") {
-            responses.push_back(request_handler_.HandleBusRequest(request_map));
+            responses.emplace_back(request_handler_.HandleBusRequest(request_map));
+        } else if (type == "Map") {
+            // Генерация SVG-карты
+            svg::Document svg_map = renderer.RenderMap();
+            std::ostringstream oss;
+            svg_map.Render(oss);
+            std::string svg_str = oss.str();
+
+            // Создание JSON-ответа для "Map"
+            responses.emplace_back(json::Dict{
+                {"map", std::move(svg_str)},
+                {"request_id", id}
+            });
         }
     }
     return responses;
 }
-    
+
 map_renderer::RenderSettings JsonReader::ParseRenderSettings(const json::Node& render_settings_node) const {
     const auto& settings_map = render_settings_node.AsMap();
     map_renderer::RenderSettings settings;

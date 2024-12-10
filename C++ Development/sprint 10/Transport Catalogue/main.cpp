@@ -50,11 +50,15 @@ int main() {
     // Initialize MapRenderer
     map_renderer::MapRenderer renderer(render_settings, catalogue);
 
-    // Render SVG map
-    svg::Document svg_map = renderer.RenderMap();
+    // Process stat_requests and collect responses
+    json::Array responses;
+    if (root.find("stat_requests") != root.end()) {
+        const auto& stat_requests = root.at("stat_requests").AsArray();
+        responses = json_reader.ProcessStatRequests(stat_requests, renderer);
+    }
 
-    // Output SVG to stdout
-    svg_map.Render(std::cout);
+    // Output JSON responses
+    json::Print(json::Document{json::Node{responses}}, std::cout);
 
     return 0;
 }
