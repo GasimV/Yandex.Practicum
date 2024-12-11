@@ -1,4 +1,4 @@
-The Transport Catalogue program is a C++ application designed to manage and process transportation data, including the creation of a transport database, handling user requests, and generating map renderings. Its workflow can be divided into several key components:
+The **Transport Catalogue** program is a C++ application designed to manage and process transportation data, including the creation of a transport database, handling user requests, and generating map renderings. Its workflow can be divided into several key components:
 
 1. **Data Input and Parsing**:
    - The program reads input data in JSON format, which includes information about bus routes, stops, and rendering settings.
