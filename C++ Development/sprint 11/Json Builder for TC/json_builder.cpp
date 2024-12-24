@@ -106,21 +106,27 @@ Builder& Builder::StartDict() {
         throw logic_error("StartDict() called in invalid context.");
     }
 
+    // Создаём новый узел-словарь
     Node dict_node(Dict{});
 
     if (nodes_stack_.empty()) {
-        root_ = move(dict_node);
+        // Если стек пуст, значит это будет корень
+        root_ = std::move(dict_node);
         nodes_stack_.push_back(&root_);
     } else if (IsInArray()) {
+        // Если сверху массива — добавляем в массив
         Array& arr = const_cast<Array&>(nodes_stack_.back()->AsArray());
-        arr.emplace_back(move(dict_node));
-        Node& just_added = arr.back();
+        arr.emplace_back(std::move(dict_node));
+        Node& just_added = arr.back();  // <-- точно тот элемент, который вставили
         nodes_stack_.push_back(&just_added);
     } else if (IsInDict()) {
+        // Если сверху словарь — добавляем {current_key_: dict_node}
         Dict& d = const_cast<Dict&>(nodes_stack_.back()->AsDict());
-        d.emplace(move(current_key_), move(dict_node));
+        auto [it, inserted] = d.emplace(std::move(current_key_), std::move(dict_node));
         current_key_.clear();
-        Node& new_dict_ref = d.at(d.rbegin()->first);
+
+        // it->second — это тот самый только что вставленный узел
+        Node& new_dict_ref = it->second;
         nodes_stack_.push_back(&new_dict_ref);
     }
 
@@ -148,18 +154,20 @@ Builder& Builder::StartArray() {
     Node array_node(Array{});
 
     if (nodes_stack_.empty()) {
-        root_ = move(array_node);
+        root_ = std::move(array_node);
         nodes_stack_.push_back(&root_);
     } else if (IsInArray()) {
         Array& arr = const_cast<Array&>(nodes_stack_.back()->AsArray());
-        arr.emplace_back(move(array_node));
-        Node& just_added = arr.back();
+        arr.emplace_back(std::move(array_node));
+        Node& just_added = arr.back(); 
         nodes_stack_.push_back(&just_added);
     } else if (IsInDict()) {
         Dict& d = const_cast<Dict&>(nodes_stack_.back()->AsDict());
-        d.emplace(move(current_key_), move(array_node));
+        auto [it, inserted] = d.emplace(std::move(current_key_), std::move(array_node));
         current_key_.clear();
-        Node& new_arr_ref = d.at(d.rbegin()->first);
+
+        // вместо rbegin()->first берём именно тот итератор, который вернул emplace
+        Node& new_arr_ref = it->second;
         nodes_stack_.push_back(&new_arr_ref);
     }
 
