@@ -1,68 +1,98 @@
 #pragma once
 
 #include "json.h"
+#include <string>
+#include <vector>
+#include <stdexcept>
+#include <utility>
 
 namespace json {
 
+class Builder;
+class DictItemContext;
+class KeyValueContext;
+class ArrayItemContext;
+class RootContext;
+
+// ------------------------
+// Главный класс Builder
+// ------------------------
 class Builder {
 public:
-    // Метод Build завершает построение JSON-объекта и возвращает готовый Node
-    // Если объект ещё не готов (например, сразу после конструктора, или остались
-    // незакрытые словари/массивы), бросаем std::logic_error
+    Builder();
+
     Node Build();
 
-    // Добавляет строковый ключ в словарь.
-    // Следующий вызов обязательно должен быть Value(...) или StartDict/StartArray
+    // Методы для контекстов
     Builder& Key(std::string key);
-
-    // Добавляет простое значение (число, строку, bool, null).
-    // Может быть вызван:
-    // - сразу после конструктора (задаёт весь объект целиком);
-    // - после Key (задаёт значение по ключу в словаре);
-    // - после Value/StartDict/StartArray внутри массива (добавляет очередной элемент массива).
     Builder& Value(Node::Value value);
-
-    // Начинает словарь ({}).
-    // Логика та же, что и для Value, только вместо примитивного значения
-    // мы добавляем/определяем словарь.
     Builder& StartDict();
-
-    // Завершает последний начатый словарь.
-    // Если никакой словарь сейчас не открыт — бросаем std::logic_error.
     Builder& EndDict();
-
-    // Начинает массив ([]).
-    // Логика аналогична словарю: может вызываться там же, где Value(...).
     Builder& StartArray();
-
-    // Завершает последний начатый массив.
-    // Если никакой массив сейчас не открыт — бросаем std::logic_error.
     Builder& EndArray();
 
+    RootContext Start();
+
 private:
-    // Узел-корень (итоговый объект)
+    friend class DictItemContext;
+    friend class KeyValueContext;
+    friend class ArrayItemContext;
+    friend class RootContext;
+
     Node root_;
-
-    // Стек "текущих" узлов, в которые мы добавляем новые значения.
-    // Если на вершине лежит Dict, то следующий Key/Value
-    // идёт в этот словарь; если Array — то следующий Value/StartDict/StartArray
-    // добавляется в этот массив.
     std::vector<Node*> nodes_stack_;
-
-    // Последний считанный ключ при построении словаря
-    // (вспомогательное поле, чтобы связать Key(...) c последующей Value(...))
     std::string current_key_;
-    
-    bool key_in_progress_ = false;  // Флаг для отслеживания состояния ключа
-
-    // Флаг, показывающий, что Build уже вызывался и дальнейшее редактирование невозможно
+    bool key_in_progress_ = false;
     bool is_build_finished_ = false;
 
-    // Вспомогательные методы
     bool IsInArray() const;
     bool IsInDict() const;
-    // Проверить, можем ли мы сейчас вызвать Value/StartDict/StartArray
     bool CanAddValue() const;
+};
+
+class RootContext {
+public:
+    explicit RootContext(Builder& b);
+    RootContext Value(Node::Value value);
+    DictItemContext StartDict();
+    ArrayItemContext StartArray();
+    Node Build();
+
+private:
+    Builder& b_;
+};
+
+class DictItemContext {
+public:
+    explicit DictItemContext(Builder& b);
+    KeyValueContext Key(std::string key);
+    RootContext EndDict();
+
+private:
+    Builder& b_;
+};
+
+class KeyValueContext {
+public:
+    explicit KeyValueContext(Builder& b);
+    DictItemContext Value(Node::Value value);
+    DictItemContext StartDict();
+    ArrayItemContext StartArray();
+
+private:
+    Builder& b_;
+};
+
+class ArrayItemContext {
+public:
+    explicit ArrayItemContext(Builder& b);
+    ArrayItemContext Value(Node::Value value);
+    ArrayItemContext StartDict();
+    ArrayItemContext StartArray();
+    RootContext EndArray();
+
+private:
+    Builder& b_;
 };
 
 } // namespace json
