@@ -19,23 +19,23 @@ public:
     ArrayItemContext StartArray();
     BaseContext EndArray();
 
-private:       
+private:
     class BaseContext;
     class DictValueContext;
     class DictItemContext;
     class ArrayItemContext;
-    
+
     Node root_;
     std::vector<Node*> nodes_stack_;
     std::string current_key_;
-    
+
     bool key_in_progress_ = false;
     bool is_build_finished_ = false;
 
     bool IsInArray() const;
     bool IsInDict() const;
     bool CanAddValue() const;
-    
+
     class BaseContext {
     public:
         BaseContext(Builder& builder) : builder_(builder) {}
@@ -45,8 +45,6 @@ private:
         
         DictValueContext Key(std::string key);
         BaseContext Value(Node::Value value);
-        DictItemContext StartDict();
-        ArrayItemContext StartArray();
         BaseContext EndDict();
         BaseContext EndArray();
         

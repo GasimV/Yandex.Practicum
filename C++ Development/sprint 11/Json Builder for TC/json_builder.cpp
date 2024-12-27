@@ -23,11 +23,6 @@ bool Builder::IsInDict() const {
 }
 
 bool Builder::CanAddValue() const {
-    std::cerr << "Checking CanAddValue:\n";
-    std::cerr << "  is_build_finished_: " << is_build_finished_ << "\n";
-    std::cerr << "  root_.IsNull(): " << root_.IsNull() << "\n";
-    std::cerr << "  key_in_progress_: " << key_in_progress_ << "\n";
-    std::cerr << "  nodes_stack_.size(): " << nodes_stack_.size() << "\n";
     if (!nodes_stack_.empty()) {
         if (nodes_stack_.back()->IsArray()) {
             std::cerr << "  Context: In Array\n";
@@ -62,8 +57,7 @@ Node Builder::Build() {
     return root_;
 }
 
-Builder& Builder::Key(std::string key) {
-    std::cerr << "Calling Key: " << key << "\n";
+DictValueContext Builder::Key(string key) {
     if (!IsInDict()) {
         throw std::logic_error("Key() called outside of a dictionary.");
     }
@@ -73,10 +67,10 @@ Builder& Builder::Key(std::string key) {
 
     current_key_ = std::move(key);
     key_in_progress_ = true;
-    return *this;
+    return DictValueContext(BaseContext(*this));
 }
 
-Builder& Builder::Value(Node::Value value) {
+BaseContext Builder::Value(Node::Value value) {
     if (!CanAddValue()) {
         throw std::logic_error("Value(...) called in invalid context.");
     }
@@ -101,10 +95,10 @@ Builder& Builder::Value(Node::Value value) {
         current_key_.clear();
     }
 
-    return *this;
+    return BaseContext(*this);
 }
 
-Builder& Builder::StartDict() {
+DictItemContext Builder::StartDict() {
     if (!CanAddValue()) {
         throw std::logic_error("StartDict() called in invalid context.");
     }
@@ -129,19 +123,19 @@ Builder& Builder::StartDict() {
         nodes_stack_.push_back(&it->second);
     }
 
-    return *this;
+    return DictItemContext(BaseContext(*this));
 }
 
-Builder& Builder::EndDict() {
+BaseContext Builder::EndDict() {
     if (nodes_stack_.empty() || !nodes_stack_.back()->IsDict()) {
         throw std::logic_error("EndDict() called but there is no matching StartDict().");
     }
 
     nodes_stack_.pop_back();
-    return *this;
+    return BaseContext(*this);
 }
 
-Builder& Builder::StartArray() {
+ArrayItemContext Builder::StartArray() {
     if (!CanAddValue()) {
         throw std::logic_error("StartArray() called in invalid context.");
     }
@@ -166,16 +160,36 @@ Builder& Builder::StartArray() {
         nodes_stack_.push_back(&it->second);
     }
 
-    return *this;
+    return ArrayItemContext(BaseContext(*this));
 }
 
-Builder& Builder::EndArray() {
+BaseContext Builder::EndArray() {
     if (nodes_stack_.empty() || !nodes_stack_.back()->IsArray()) {
         throw std::logic_error("EndArray() called but there is no matching StartArray().");
     }
 
     nodes_stack_.pop_back();
-    return *this;
+    return BaseContext(*this);
+}
+
+// -----------------------------------------------------------------------------
+// Методы контекстных классов
+// -----------------------------------------------------------------------------
+
+DictValueContext BaseContext::Key(string key) {
+    return builder_.Key(move(key));
+}
+
+BaseContext BaseContext::Value(Node::Value value) {
+    return builder_.Value(move(value));
+}
+
+BaseContext BaseContext::EndDict() {
+    return builder_.EndDict();
+}
+
+BaseContext BaseContext::EndArray() {
+    return builder_.EndArray();
 }
 
 } // namespace json
