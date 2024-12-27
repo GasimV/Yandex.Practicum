@@ -64,6 +64,25 @@ BaseContext Builder::Value(const Node::Value& value) {
     return BaseContext(*this);
 }
 
+// Вспомогательный метод, чтобы понять, в каком контексте мы сейчас находимся
+BaseContext Builder::GetCurrentContext() {
+    // Если стек пуст, значит мы уже на верхнем уровне (root готов)
+    if (nodes_stack_.empty()) {
+        // Возвращаем базовый контекст
+        return BaseContext(*this);
+    }
+    // Если верхний элемент — это массив, значит мы находимся в ArrayItemContext
+    if (IsInArray()) {
+        return ArrayItemContext(*this);
+    }
+    // Если верхний элемент — это словарь, то DictItemContext
+    if (IsInDict()) {
+        return DictItemContext(*this);
+    }
+    // На всякий случай, если вдруг что-то ещё — вернём базовый
+    return BaseContext(*this);
+}
+
 DictItemContext Builder::StartDict() {
     if (!CanAddValue()) {
         throw std::logic_error("StartDict() in invalid context");
@@ -118,16 +137,20 @@ BaseContext Builder::EndDict() {
     if (!IsInDict()) {
         throw std::logic_error("EndDict() called but not in a dict");
     }
+    // Закрываем верхний словарь
     nodes_stack_.pop_back();
-    return BaseContext(*this);
+    // Возвращаемся к родительскому контексту
+    return GetCurrentContext();
 }
 
 BaseContext Builder::EndArray() {
     if (!IsInArray()) {
         throw std::logic_error("EndArray() called but not in an array");
     }
+    // Закрываем верхний массив
     nodes_stack_.pop_back();
-    return BaseContext(*this);
+    // Возвращаемся к родительскому контексту
+    return GetCurrentContext();
 }
 
 // Implementations for DictItemContext

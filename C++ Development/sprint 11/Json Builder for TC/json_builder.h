@@ -89,6 +89,8 @@ public:
 
     // Add a value to the current context
     BaseContext Value(const Node::Value& value);
+    
+    BaseContext GetCurrentContext();
 
     // End the current dictionary
     BaseContext EndDict();
