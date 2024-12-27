@@ -8,6 +8,12 @@
 namespace json {
 
 class Builder {
+private:
+    class BaseContext;
+    class DictValueContext;
+    class DictItemContext;
+    class ArrayItemContext;
+
 public:
     Builder();
     Node Build();
@@ -19,12 +25,7 @@ public:
     ArrayItemContext StartArray();
     BaseContext EndArray();
 
-private:
-    class BaseContext;
-    class DictValueContext;
-    class DictItemContext;
-    class ArrayItemContext;
-
+private:    
     Node root_;
     std::vector<Node*> nodes_stack_;
     std::string current_key_;

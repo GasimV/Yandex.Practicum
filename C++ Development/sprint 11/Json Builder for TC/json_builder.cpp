@@ -57,7 +57,7 @@ Node Builder::Build() {
     return root_;
 }
 
-DictValueContext Builder::Key(string key) {
+Builder::DictValueContext Builder::Key(string key) {
     if (!IsInDict()) {
         throw std::logic_error("Key() called outside of a dictionary.");
     }
@@ -70,7 +70,7 @@ DictValueContext Builder::Key(string key) {
     return DictValueContext(BaseContext(*this));
 }
 
-BaseContext Builder::Value(Node::Value value) {
+Builder::BaseContext Builder::Value(Node::Value value) {
     if (!CanAddValue()) {
         throw std::logic_error("Value(...) called in invalid context.");
     }
@@ -98,7 +98,7 @@ BaseContext Builder::Value(Node::Value value) {
     return BaseContext(*this);
 }
 
-DictItemContext Builder::StartDict() {
+Builder::DictItemContext Builder::StartDict() {
     if (!CanAddValue()) {
         throw std::logic_error("StartDict() called in invalid context.");
     }
@@ -126,7 +126,7 @@ DictItemContext Builder::StartDict() {
     return DictItemContext(BaseContext(*this));
 }
 
-BaseContext Builder::EndDict() {
+Builder::BaseContext Builder::EndDict() {
     if (nodes_stack_.empty() || !nodes_stack_.back()->IsDict()) {
         throw std::logic_error("EndDict() called but there is no matching StartDict().");
     }
@@ -135,7 +135,7 @@ BaseContext Builder::EndDict() {
     return BaseContext(*this);
 }
 
-ArrayItemContext Builder::StartArray() {
+Builder::ArrayItemContext Builder::StartArray() {
     if (!CanAddValue()) {
         throw std::logic_error("StartArray() called in invalid context.");
     }
@@ -163,7 +163,7 @@ ArrayItemContext Builder::StartArray() {
     return ArrayItemContext(BaseContext(*this));
 }
 
-BaseContext Builder::EndArray() {
+Builder::BaseContext Builder::EndArray() {
     if (nodes_stack_.empty() || !nodes_stack_.back()->IsArray()) {
         throw std::logic_error("EndArray() called but there is no matching StartArray().");
     }
@@ -176,19 +176,19 @@ BaseContext Builder::EndArray() {
 // Методы контекстных классов
 // -----------------------------------------------------------------------------
 
-DictValueContext BaseContext::Key(string key) {
+Builder::DictValueContext Builder::BaseContext::Key(string key) {
     return builder_.Key(move(key));
 }
 
-BaseContext BaseContext::Value(Node::Value value) {
+Builder::BaseContext Builder::BaseContext::Value(Node::Value value) {
     return builder_.Value(move(value));
 }
 
-BaseContext BaseContext::EndDict() {
+Builder::BaseContext Builder::BaseContext::EndDict() {
     return builder_.EndDict();
 }
 
-BaseContext BaseContext::EndArray() {
+Builder::BaseContext Builder::BaseContext::EndArray() {
     return builder_.EndArray();
 }
 
