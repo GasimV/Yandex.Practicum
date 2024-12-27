@@ -9,90 +9,102 @@
 namespace json {
 
 class Builder;
-class DictItemContext;
-class KeyValueContext;
-class ArrayItemContext;
-class RootContext;
 
-// ------------------------
-// Главный класс Builder
-// ------------------------
+// Forward declarations of context classes
+class DictItemContext;
+class ArrayItemContext;
+class DictValueContext;
+
+// BaseContext serves as the base class for all specific contexts
+class BaseContext {
+public:
+    explicit BaseContext(Builder& builder) : builder_(builder) {}
+    
+    // Allow Build() to be called only when appropriate
+    Node Build();
+
+protected:
+    Builder& builder_;
+};
+
+// Context classes
+class DictItemContext : public BaseContext {
+public:
+    using BaseContext::BaseContext;
+
+    DictValueContext Key(const std::string& key);
+    // After ending a dict, return to the parent context
+    BaseContext EndDict();
+
+    // Disallow other operations in this context
+    BaseContext Value(const Node::Value& value) = delete;
+    ArrayItemContext StartArray() = delete;
+    DictItemContext StartDict() = delete;
+};
+
+class ArrayItemContext : public BaseContext {
+public:
+    using BaseContext::BaseContext;
+
+    ArrayItemContext Value(const Node::Value& value);
+    ArrayItemContext StartArray();
+    DictItemContext StartDict();
+    // After ending an array, return to the parent context
+    BaseContext EndArray();
+
+    // Disallow Key in array context
+    DictValueContext Key(const std::string& key) = delete;
+    BaseContext EndDict() = delete;
+};
+
+class DictValueContext : public BaseContext {
+public:
+    using BaseContext::BaseContext;
+
+    DictItemContext Value(const Node::Value& value);
+    ArrayItemContext StartArray();
+    DictItemContext StartDict();
+
+    // Disallow EndDict and Key in this context
+    BaseContext EndDict() = delete;
+    DictValueContext Key(const std::string& key) = delete;
+};
+
+// Builder class
 class Builder {
 public:
     Builder();
 
+    // Build the final Node
     Node Build();
 
-    // Методы для контекстов
-    Builder& Key(std::string key);
-    Builder& Value(Node::Value value);
-    Builder& StartDict();
-    Builder& EndDict();
-    Builder& StartArray();
-    Builder& EndArray();
+    // Start building a dictionary
+    DictItemContext StartDict();
 
-    RootContext Start();
+    // Start building an array
+    ArrayItemContext StartArray();
+
+    // Add a key to a dictionary
+    DictValueContext Key(const std::string& key);
+
+    // Add a value to the current context
+    BaseContext Value(const Node::Value& value);
+
+    // End the current dictionary
+    BaseContext EndDict();
+
+    // End the current array
+    BaseContext EndArray();
 
 private:
-    friend class DictItemContext;
-    friend class KeyValueContext;
-    friend class ArrayItemContext;
-    friend class RootContext;
-
     Node root_;
-    std::vector<Node*> nodes_stack_;
-    std::string current_key_;
-    bool key_in_progress_ = false;
+    std::vector<Node*> nodes_stack_;  // Stack of pointers to open containers
+    std::vector<std::string> keys_stack_;  // Stack of keys for dicts
     bool is_build_finished_ = false;
 
     bool IsInArray() const;
     bool IsInDict() const;
     bool CanAddValue() const;
-};
-
-class RootContext {
-public:
-    explicit RootContext(Builder& b);
-    RootContext Value(Node::Value value);
-    DictItemContext StartDict();
-    ArrayItemContext StartArray();
-    Node Build();
-
-private:
-    Builder& b_;
-};
-
-class DictItemContext {
-public:
-    explicit DictItemContext(Builder& b);
-    KeyValueContext Key(std::string key);
-    RootContext EndDict();
-
-private:
-    Builder& b_;
-};
-
-class KeyValueContext {
-public:
-    explicit KeyValueContext(Builder& b);
-    DictItemContext Value(Node::Value value);
-    DictItemContext StartDict();
-    ArrayItemContext StartArray();
-
-private:
-    Builder& b_;
-};
-
-class ArrayItemContext {
-public:
-    explicit ArrayItemContext(Builder& b);
-    ArrayItemContext Value(Node::Value value);
-    ArrayItemContext StartDict();
-    ArrayItemContext StartArray();
-    RootContext EndArray();
-
-private:
-    Builder& b_;
 };
 
 } // namespace json
