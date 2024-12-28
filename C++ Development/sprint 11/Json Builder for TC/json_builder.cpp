@@ -23,13 +23,6 @@ bool Builder::IsInDict() const {
 }
 
 bool Builder::CanAddValue() const {
-    if (!nodes_stack_.empty()) {
-        if (nodes_stack_.back()->IsArray()) {
-            std::cerr << "  Context: In Array\n";
-        } else if (nodes_stack_.back()->IsDict()) {
-            std::cerr << "  Context: In Dict\n";
-        }
-    }
     if (IsInDict() && !key_in_progress_) {
         return false;
     }

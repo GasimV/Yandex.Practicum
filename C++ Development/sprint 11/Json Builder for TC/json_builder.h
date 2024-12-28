@@ -2,9 +2,6 @@
 
 #include "json.h"
 
-#include <stdexcept>
-#include <utility>
-
 namespace json {
 
 class Builder {
