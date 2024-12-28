@@ -54,7 +54,7 @@ private:
             return builder_.StartArray();
         }
 
-    private:
+    protected:
         Builder& builder_;
     };
 
@@ -77,6 +77,9 @@ private:
         
         DictValueContext Key(std::string key) = delete;
         BaseContext EndDict() = delete;
+        
+        // Override Value to return ArrayItemContext
+        ArrayItemContext Value(Node::Value value);
     };
 
     class DictValueContext : public BaseContext {
@@ -87,6 +90,9 @@ private:
         BaseContext EndDict() = delete;
         DictValueContext Key(std::string key) = delete;
         BaseContext EndArray() = delete;
+        
+        // Override Value to return DictItemContext
+        DictItemContext Value(Node::Value value);
     };
 };
 

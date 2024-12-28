@@ -186,4 +186,16 @@ Builder::BaseContext Builder::BaseContext::EndArray() {
     return builder_.EndArray();
 }
 
+// Override Value() in DictValueContext to return DictItemContext
+Builder::DictItemContext Builder::DictValueContext::Value(Node::Value value) {
+    builder_.Value(move(value));
+    return DictItemContext(BaseContext(builder_));
+}
+
+// Override Value() in ArrayItemContext to return ArrayItemContext
+Builder::ArrayItemContext Builder::ArrayItemContext::Value(Node::Value value) {
+    builder_.Value(move(value));
+    return ArrayItemContext(BaseContext(builder_));
+}
+
 } // namespace json
