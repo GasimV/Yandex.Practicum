@@ -37,10 +37,14 @@ void Print(const vector<int>& Array) {
 int main() {
     vector<int> A{2, 8, 7, 1, 3, 5, 6, 4};
     
-    int start = 0; // index of the first element
-    int end = A.size() - 1; // index of the last element
+    int start = 0;
+    int end = A.size() - 1;
     
+    cout << "Array after the Partition Operation: " << endl;
+    Partition(A, start, end);
+    Print(A);
+    
+    cout << "Array after the Quicksort Operation: " << endl;
     Quicksort(A, start, end);
-    
     Print(A);
 }
