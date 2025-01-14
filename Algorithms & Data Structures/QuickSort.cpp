@@ -27,7 +27,7 @@ void Quicksort(vector<int>& A, int p, int r) {
     }
 }
 
-void Print(vector<int>& Array) {
+void Print(const vector<int>& Array) {
     for (int i : Array) {
         cout << i << ' ';
     }
@@ -37,8 +37,8 @@ void Print(vector<int>& Array) {
 int main() {
     vector<int> A{2, 8, 7, 1, 3, 5, 6, 4};
     
-    int start = 0;
-    int end = A.size() - 1;
+    int start = 0; // index of the first element
+    int end = A.size() - 1; // index of the last element
     
     Quicksort(A, start, end);
     
