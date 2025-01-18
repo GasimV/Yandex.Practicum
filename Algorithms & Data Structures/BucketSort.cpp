@@ -27,6 +27,11 @@ void BucketSort(vector<float>& A) {
     // Step 2: Put array elements in different buckets
     for (int i = 0; i < n; i++) {
         int bucketIndex = n * A[i]; // Assuming A[i] is in range [0, 1)
+        
+        // If there's a chance of floating-point imprecision causing A[i] to equal 1.0, 
+        // you might want to handle it explicitly to avoid an out-of-range bucket index:
+        // int bucketIndex = min(n - 1, static_cast<int>(n * A[i]));
+
         B[bucketIndex].push_back(A[i]);
     }
     
