@@ -45,8 +45,9 @@ int RandomizedSelect(vector<int>& A, int p, int r, int i) {
 int main() {
     vector<int> A{6, 19, 4, 12, 14, 9, 15, 7, 8, 11, 3, 13, 2, 5, 10};
     
-    int m = RandomizedSelect(A, 0, 14, 5);
-    cout << m;
+    int i = 5;
+    int m = RandomizedSelect(A, 0, 14, i);
+    cout << i << "th smallest element is: " << m;
     
     return 0;
 }

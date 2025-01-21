@@ -42,13 +42,16 @@ int Select(vector<int>& A, int p, int r, int i) {
         p = p + 1;
         i = i - 1;
     }
+    
     int g = (r - p + 1) / 5;
     for (int j = p; j <= p + g - 1; ++j) {
         sort(A.begin() + j, A.begin() + j + 5);
     }
+    
     int x = Select(A, p + 2 * g, p + 3 * g - 1, ceil(g / 2.0));
     int q = PartitionAround(A, p, r, x);
     int k = q - p + 1;
+    
     if (i == k) {
         return A[q];
     } else if (i < k) {
@@ -61,8 +64,9 @@ int Select(vector<int>& A, int p, int r, int i) {
 int main() {
     vector<int> A{6, 19, 4, 12, 14, 9, 15, 7, 8, 11, 3, 13, 2, 5, 10};
     
-    int m = Select(A, 0, 14, 5);
-    cout << m;
+    int i = 5;
+    int m = Select(A, 0, 14, i);
+    cout << i << "th smallest element is: " << m;
     
     return 0;
 }
