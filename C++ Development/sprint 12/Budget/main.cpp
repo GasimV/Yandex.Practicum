@@ -27,12 +27,21 @@ void ParseAndProcessQuery(BudgetManager& manager, std::string_view line) {
         Date to(to_str);
         manager.Earn(from, to, amount);
     }
-    else if (command == "PayTax") {
+    else if (command == "Spend") {
         std::string from_str, to_str;
-        iss >> from_str >> to_str;
+        double amount;
+        iss >> from_str >> to_str >> amount;
         Date from(from_str);
         Date to(to_str);
-        manager.PayTax(from, to);
+        manager.Spend(from, to, amount);
+    }
+    else if (command == "PayTax") {
+        std::string from_str, to_str;
+        int tax_percentage;
+        iss >> from_str >> to_str >> tax_percentage;
+        Date from(from_str);
+        Date to(to_str);
+        manager.PayTax(from, to, tax_percentage);
     }
 }
 
