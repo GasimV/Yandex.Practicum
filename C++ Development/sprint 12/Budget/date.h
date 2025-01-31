@@ -18,7 +18,8 @@ public:
 
     static int ComputeDistance(const Date& from, const Date& to) {
         return static_cast<int>(
-            (std::chrono::sys_days(to.ymd_) - std::chrono::sys_days(from.ymd_)).count());
+            (std::chrono::sys_days(to.ymd_) - std::chrono::sys_days(from.ymd_)).count()
+        );
     }
 
 private:
