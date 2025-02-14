@@ -4,6 +4,7 @@
 #include <new>
 #include <utility>
 #include <algorithm>
+#include <stdexcept>
 
 template <typename T>
 class Vector {
@@ -13,21 +14,29 @@ public:
 
     // Конструктор с размером
     explicit Vector(size_t size)
-        : size_(size),
-          capacity_(size),
-          data_(size ? static_cast<T*>(operator new(size * sizeof(T))) : nullptr) {
-        for (size_t i = 0; i < size_; ++i) {
-            new (data_ + i) T(); // Конструирование элементов
+        : size_(0), capacity_(size), data_(size ? static_cast<T*>(operator new(size * sizeof(T))) : nullptr) {
+        try {
+            for (; size_ < size; ++size_) {
+                new (data_ + size_) T();
+            }
+        } catch (...) {
+            Clear();
+            operator delete(data_);
+            throw;
         }
     }
 
     // Копирующий конструктор
     Vector(const Vector& other)
-        : size_(other.size_),
-          capacity_(other.size_),
-          data_(other.size_ ? static_cast<T*>(operator new(other.size_ * sizeof(T))) : nullptr) {
-        for (size_t i = 0; i < size_; ++i) {
-            new (data_ + i) T(other.data_[i]); // Копирование элементов
+        : size_(0), capacity_(other.size_), data_(other.size_ ? static_cast<T*>(operator new(other.size_ * sizeof(T))) : nullptr) {
+        try {
+            for (; size_ < other.size_; ++size_) {
+                new (data_ + size_) T(other.data_[size_]);
+            }
+        } catch (...) {
+            Clear();
+            operator delete(data_);
+            throw;
         }
     }
 
@@ -43,13 +52,28 @@ public:
             return;
         }
         
-        T* new_data = static_cast<T*>(operator new(capacity * sizeof(T)));
-        
-        for (size_t i = 0; i < size_; ++i) {
-            new (new_data + i) T(std::move(data_[i]));
-            data_[i].~T();
+        T* new_data = nullptr;
+        try {
+            new_data = static_cast<T*>(operator new(capacity * sizeof(T)));
+            size_t i = 0;
+            try {
+                for (; i < size_; ++i) {
+                    new (new_data + i) T(data_[i]);
+                }
+            } catch (...) {
+                for (size_t j = 0; j < i; ++j) {
+                    new_data[j].~T();
+                }
+                operator delete(new_data);
+                throw;
+            }
+        } catch (const std::bad_alloc&) {
+            throw std::runtime_error("Memory allocation failed");
         }
         
+        for (size_t i = 0; i < size_; ++i) {
+            data_[i].~T();
+        }
         operator delete(data_);
         data_ = new_data;
         capacity_ = capacity;
