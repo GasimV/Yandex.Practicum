@@ -6,6 +6,74 @@
 #include <algorithm>
 #include <stdexcept>
 
+// Класс RawMemory отвечает только за выделение/освобождение памяти
+template <typename T>
+class RawMemory {
+public:
+    RawMemory() = default;
+
+    explicit RawMemory(size_t capacity)
+        : buffer_(Allocate(capacity))
+        , capacity_(capacity) {
+    }
+
+    ~RawMemory() {
+        Deallocate(buffer_);
+    }
+
+    T* operator+(size_t offset) noexcept {
+        // Разрешается получать адрес ячейки памяти, следующей за последним элементом массива
+        assert(offset <= capacity_);
+        return buffer_ + offset;
+    }
+
+    const T* operator+(size_t offset) const noexcept {
+        return const_cast<RawMemory&>(*this) + offset;
+    }
+
+    const T& operator[](size_t index) const noexcept {
+        return const_cast<RawMemory&>(*this)[index];
+    }
+
+    T& operator[](size_t index) noexcept {
+        assert(index < capacity_);
+        return buffer_[index];
+    }
+
+    void Swap(RawMemory& other) noexcept {
+        std::swap(buffer_, other.buffer_);
+        std::swap(capacity_, other.capacity_);
+    }
+
+    const T* GetAddress() const noexcept {
+        return buffer_;
+    }
+
+    T* GetAddress() noexcept {
+        return buffer_;
+    }
+
+    size_t Capacity() const {
+        return capacity_;
+    }
+
+private:
+    // Выделяет сырую память под n элементов и возвращает указатель на неё
+    static T* Allocate(size_t n) {
+        return n != 0 ? static_cast<T*>(operator new(n * sizeof(T))) : nullptr;
+    }
+
+    // Освобождает сырую память, выделенную ранее по адресу buf при помощи Allocate
+    static void Deallocate(T* buf) noexcept {
+        operator delete(buf);
+    }
+
+    T* buffer_ = nullptr;
+    size_t capacity_ = 0;
+};
+
+// Класс Vector теперь использует RawMemory для управления выделенной памятью.
+// Конструкторы, деструктор и метод Reserve упрощены за счёт RawMemory.
 template <typename T>
 class Vector {
 public:
@@ -14,69 +82,67 @@ public:
 
     // Конструктор с размером
     explicit Vector(size_t size)
-        : size_(0), capacity_(size), data_(size ? static_cast<T*>(operator new(size * sizeof(T))) : nullptr) {
+        : size_(size)
+        , data_(size) {
+        size_t i = 0;
         try {
-            for (; size_ < size; ++size_) {
-                new (data_ + size_) T();
+            for (; i < size_; ++i) {
+                new (data_ + i) T();
             }
         } catch (...) {
-            Clear();
-            operator delete(data_);
+            for (size_t j = 0; j < i; ++j) {
+                (data_ + j)->~T();
+            }
             throw;
         }
     }
 
-    // Копирующий конструктор
+    // Копирующий конструктор (аналогичен конструктору с размером)
     Vector(const Vector& other)
-        : size_(0), capacity_(other.size_), data_(other.size_ ? static_cast<T*>(operator new(other.size_ * sizeof(T))) : nullptr) {
+        : size_(other.size_)
+        , data_(other.size_) {
+        size_t i = 0;
         try {
-            for (; size_ < other.size_; ++size_) {
-                new (data_ + size_) T(other.data_[size_]);
+            for (; i < size_; ++i) {
+                new (data_ + i) T(other[i]);
             }
         } catch (...) {
-            Clear();
-            operator delete(data_);
+            for (size_t j = 0; j < i; ++j) {
+                (data_ + j)->~T();
+            }
             throw;
         }
     }
 
-    // Деструктор
+    // Деструктор: вызываем деструкторы объектов, затем RawMemory сам освободит память
     ~Vector() {
-        Clear();
-        operator delete(data_);
+        for (size_t i = 0; i < size_; ++i) {
+            (data_ + i)->~T();
+        }
     }
 
     // Метод резервирования памяти
-    void Reserve(size_t capacity) {
-        if (capacity <= capacity_) {
+    void Reserve(size_t new_capacity) {
+        if (new_capacity <= data_.Capacity()) {
             return;
         }
-        
-        T* new_data = nullptr;
+        RawMemory<T> new_data(new_capacity);
+        size_t i = 0;
         try {
-            new_data = static_cast<T*>(operator new(capacity * sizeof(T)));
-            size_t i = 0;
-            try {
-                for (; i < size_; ++i) {
-                    new (new_data + i) T(data_[i]);
-                }
-            } catch (...) {
-                for (size_t j = 0; j < i; ++j) {
-                    new_data[j].~T();
-                }
-                operator delete(new_data);
-                throw;
+            for (; i < size_; ++i) {
+                new (new_data + i) T(data_[i]);
             }
-        } catch (const std::bad_alloc&) {
-            throw std::runtime_error("Memory allocation failed");
+        } catch (...) {
+            for (size_t j = 0; j < i; ++j) {
+                (new_data + j)->~T();
+            }
+            throw;
         }
-        
+        // Освобождаем старые объекты (память освободится в деструкторе RawMemory)
         for (size_t i = 0; i < size_; ++i) {
-            data_[i].~T();
+            (data_ + i)->~T();
         }
-        operator delete(data_);
-        data_ = new_data;
-        capacity_ = capacity;
+        data_.Swap(new_data);
     }
 
     size_t Size() const noexcept {
@@ -84,11 +150,11 @@ public:
     }
 
     size_t Capacity() const noexcept {
-        return capacity_;
+        return data_.Capacity();
     }
 
     const T& operator[](size_t index) const noexcept {
-        return const_cast<Vector&>(*this)[index];
+        return data_[index];
     }
 
     T& operator[](size_t index) noexcept {
@@ -97,14 +163,6 @@ public:
     }
 
 private:
-    void Clear() noexcept {
-        for (size_t i = 0; i < size_; ++i) {
-            data_[i].~T();
-        }
-        size_ = 0;
-    }
-
     size_t size_ = 0;
-    size_t capacity_ = 0;
-    T* data_ = nullptr;
+    RawMemory<T> data_;
 };
