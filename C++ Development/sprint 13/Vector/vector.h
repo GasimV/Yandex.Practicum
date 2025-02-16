@@ -5,8 +5,8 @@
 #include <utility>
 #include <algorithm>
 #include <stdexcept>
-#include <memory>        // для uninitialized_*/destroy_*
-#include <type_traits>   // для is_nothrow_move_constructible_v, is_copy_constructible_v, is_pointer_v
+#include <memory>
+#include <type_traits>
 
 // Класс RawMemory отвечает только за выделение/освобождение памяти
 template <typename T>
@@ -101,7 +101,7 @@ public:
         T* end = begin;
         try {
             auto copy_result = std::uninitialized_copy_n(other.data_.GetAddress(), size_, begin);
-            // Если возвращается указатель, то используем его, иначе – извлекаем поле second.
+            // Если возвращается указатель, используем его, иначе – извлекаем поле second.
             auto get_end = [](auto res) -> T* {
                 if constexpr (std::is_pointer_v<decltype(res)>) {
                     return res;
@@ -116,13 +116,64 @@ public:
         }
     }
 
+    // Перемещающий конструктор: выполняется за O(1) и не выбрасывает исключений.
+    Vector(Vector&& other) noexcept
+        : size_(other.size_)
+        , data_() // создаём пустой RawMemory
+    {
+        data_.Swap(other.data_);
+        other.size_ = 0;
+    }
+
     // Деструктор: уничтожает элементы с помощью std::destroy_n.
     ~Vector() {
         std::destroy_n(data_.GetAddress(), size_);
     }
 
-    // Метод Reserve: резервирует новую память и перемещает или копирует элементы.
-    // Если тип T перемещается noexcept или не копируемый – используется перемещение.
+    // Оператор копирующего присваивания.
+    // Если вместимости вектора-приёмника не хватает для rhs,
+    // применяется copy-and-swap, иначе – поэлементное копирование.
+    Vector& operator=(const Vector& rhs) {
+        if (this != &rhs) {
+            if (data_.Capacity() < rhs.size_) {
+                Vector<T> tmp(rhs);
+                Swap(tmp);
+            } else {
+                size_t common = (size_ < rhs.size_) ? size_ : rhs.size_;
+                // Присваиваем существующим элементам
+                for (size_t i = 0; i < common; ++i) {
+                    data_[i] = rhs.data_[i];
+                }
+                if (rhs.size_ > size_) {
+                    // Дописываем новые элементы в неинициализированную память
+                    T* dest = data_.GetAddress() + size_;
+                    size_t count = rhs.size_ - size_;
+                    std::uninitialized_copy_n(rhs.data_.GetAddress() + size_, count, dest);
+                } else if (rhs.size_ < size_) {
+                    // Удаляем лишние элементы
+                    std::destroy_n(data_.GetAddress() + rhs.size_, size_ - rhs.size_);
+                }
+                size_ = rhs.size_;
+            }
+        }
+        return *this;
+    }
+
+    // Оператор перемещающего присваивания: выполняется за O(1) и не выбрасывает исключений.
+    Vector& operator=(Vector&& rhs) noexcept {
+        if (this != &rhs) {
+            Swap(rhs);
+        }
+        return *this;
+    }
+
+    // Метод Swap: меняет содержимое векторов за O(1) и не выбрасывает исключений.
+    void Swap(Vector& other) noexcept {
+        std::swap(size_, other.size_);
+        data_.Swap(other.data_);
+    }
+
+    // Метод Reserve остаётся без изменений (реализация из предыдущего задания).
     void Reserve(size_t new_capacity) {
         if (new_capacity <= data_.Capacity()) {
             return;
