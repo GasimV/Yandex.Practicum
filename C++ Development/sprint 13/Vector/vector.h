@@ -5,6 +5,8 @@
 #include <utility>
 #include <algorithm>
 #include <stdexcept>
+#include <memory>        // для uninitialized_*/destroy_*
+#include <type_traits>   // для is_nothrow_move_constructible_v, is_copy_constructible_v, is_pointer_v
 
 // Класс RawMemory отвечает только за выделение/освобождение памяти
 template <typename T>
@@ -22,7 +24,6 @@ public:
     }
 
     T* operator+(size_t offset) noexcept {
-        // Разрешается получать адрес ячейки памяти, следующей за последним элементом массива
         assert(offset <= capacity_);
         return buffer_ + offset;
     }
@@ -58,12 +59,10 @@ public:
     }
 
 private:
-    // Выделяет сырую память под n элементов и возвращает указатель на неё
     static T* Allocate(size_t n) {
         return n != 0 ? static_cast<T*>(operator new(n * sizeof(T))) : nullptr;
     }
 
-    // Освобождает сырую память, выделенную ранее по адресу buf при помощи Allocate
     static void Deallocate(T* buf) noexcept {
         operator delete(buf);
     }
@@ -72,76 +71,87 @@ private:
     size_t capacity_ = 0;
 };
 
-// Класс Vector теперь использует RawMemory для управления выделенной памятью.
-// Конструкторы, деструктор и метод Reserve упрощены за счёт RawMemory.
+// Класс Vector использует RawMemory и функции из <memory> для работы с неинициализированной памятью.
 template <typename T>
 class Vector {
 public:
     // Конструктор по умолчанию
     Vector() noexcept = default;
 
-    // Конструктор с размером
+    // Конструктор с размером: создаёт вектор заданного размера,
+    // используя std::uninitialized_value_construct_n.
     explicit Vector(size_t size)
         : size_(size)
         , data_(size) {
-        size_t i = 0;
+        T* begin = data_.GetAddress();
+        T* end = begin;
         try {
-            for (; i < size_; ++i) {
-                new (data_ + i) T();
-            }
+            end = std::uninitialized_value_construct_n(begin, size);
         } catch (...) {
-            for (size_t j = 0; j < i; ++j) {
-                (data_ + j)->~T();
-            }
+            std::destroy(begin, end);
             throw;
         }
     }
 
-    // Копирующий конструктор (аналогичен конструктору с размером)
+    // Копирующий конструктор: копирует элементы с помощью std::uninitialized_copy_n.
     Vector(const Vector& other)
         : size_(other.size_)
         , data_(other.size_) {
-        size_t i = 0;
+        T* begin = data_.GetAddress();
+        T* end = begin;
         try {
-            for (; i < size_; ++i) {
-                new (data_ + i) T(other[i]);
-            }
+            auto copy_result = std::uninitialized_copy_n(other.data_.GetAddress(), size_, begin);
+            // Если возвращается указатель, то используем его, иначе – извлекаем поле second.
+            auto get_end = [](auto res) -> T* {
+                if constexpr (std::is_pointer_v<decltype(res)>) {
+                    return res;
+                } else {
+                    return res.second;
+                }
+            };
+            end = get_end(copy_result);
         } catch (...) {
-            for (size_t j = 0; j < i; ++j) {
-                (data_ + j)->~T();
-            }
+            std::destroy(begin, end);
             throw;
         }
     }
 
-    // Деструктор: вызываем деструкторы объектов, затем RawMemory сам освободит память
+    // Деструктор: уничтожает элементы с помощью std::destroy_n.
     ~Vector() {
-        for (size_t i = 0; i < size_; ++i) {
-            (data_ + i)->~T();
-        }
+        std::destroy_n(data_.GetAddress(), size_);
     }
 
-    // Метод резервирования памяти
+    // Метод Reserve: резервирует новую память и перемещает или копирует элементы.
+    // Если тип T перемещается noexcept или не копируемый – используется перемещение.
     void Reserve(size_t new_capacity) {
         if (new_capacity <= data_.Capacity()) {
             return;
         }
         RawMemory<T> new_data(new_capacity);
-        size_t i = 0;
-        try {
-            for (; i < size_; ++i) {
-                new (new_data + i) T(data_[i]);
-            }
-        } catch (...) {
-            for (size_t j = 0; j < i; ++j) {
-                (new_data + j)->~T();
-            }
-            throw;
+        T* new_begin = new_data.GetAddress();
+        T* new_end = new_begin;
+        if constexpr (std::is_nothrow_move_constructible_v<T> || !std::is_copy_constructible_v<T>) {
+            auto move_result = std::uninitialized_move_n(data_.GetAddress(), size_, new_begin);
+            auto get_end = [](auto res) -> T* {
+                if constexpr (std::is_pointer_v<decltype(res)>) {
+                    return res;
+                } else {
+                    return res.second;
+                }
+            };
+            new_end = get_end(move_result);
+        } else {
+            auto copy_result = std::uninitialized_copy_n(data_.GetAddress(), size_, new_begin);
+            auto get_end = [](auto res) -> T* {
+                if constexpr (std::is_pointer_v<decltype(res)>) {
+                    return res;
+                } else {
+                    return res.second;
+                }
+            };
+            new_end = get_end(copy_result);
         }
-        // Освобождаем старые объекты (память освободится в деструкторе RawMemory)
-        for (size_t i = 0; i < size_; ++i) {
-            (data_ + i)->~T();
-        }
+        std::destroy_n(data_.GetAddress(), size_);
         data_.Swap(new_data);
     }
 
