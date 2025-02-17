@@ -101,13 +101,11 @@ public:
         T* end = begin;
         try {
             auto copy_result = std::uninitialized_copy_n(other.data_.GetAddress(), size_, begin);
-            // Если возвращается указатель, используем его, иначе – извлекаем поле second.
             auto get_end = [](auto res) -> T* {
-                if constexpr (std::is_pointer_v<decltype(res)>) {
+                if constexpr (std::is_pointer_v<decltype(res)>)
                     return res;
-                } else {
+                else
                     return res.second;
-                }
             };
             end = get_end(copy_result);
         } catch (...) {
@@ -140,17 +138,14 @@ public:
                 Swap(tmp);
             } else {
                 size_t common = (size_ < rhs.size_) ? size_ : rhs.size_;
-                // Присваиваем существующим элементам
                 for (size_t i = 0; i < common; ++i) {
                     data_[i] = rhs.data_[i];
                 }
                 if (rhs.size_ > size_) {
-                    // Дописываем новые элементы в неинициализированную память
                     T* dest = data_.GetAddress() + size_;
                     size_t count = rhs.size_ - size_;
                     std::uninitialized_copy_n(rhs.data_.GetAddress() + size_, count, dest);
                 } else if (rhs.size_ < size_) {
-                    // Удаляем лишние элементы
                     std::destroy_n(data_.GetAddress() + rhs.size_, size_ - rhs.size_);
                 }
                 size_ = rhs.size_;
@@ -173,37 +168,119 @@ public:
         data_.Swap(other.data_);
     }
 
-    // Метод Reserve остаётся без изменений (реализация из предыдущего задания).
+    // Метод Reserve: резервирует новую память и перемещает или копирует элементы.
+    // Если тип T перемещается noexcept или не копируемый – используется перемещение.
     void Reserve(size_t new_capacity) {
         if (new_capacity <= data_.Capacity()) {
             return;
         }
         RawMemory<T> new_data(new_capacity);
         T* new_begin = new_data.GetAddress();
-        T* new_end = new_begin;
         if constexpr (std::is_nothrow_move_constructible_v<T> || !std::is_copy_constructible_v<T>) {
             auto move_result = std::uninitialized_move_n(data_.GetAddress(), size_, new_begin);
             auto get_end = [](auto res) -> T* {
-                if constexpr (std::is_pointer_v<decltype(res)>) {
+                if constexpr (std::is_pointer_v<decltype(res)>)
                     return res;
-                } else {
+                else
                     return res.second;
-                }
             };
-            new_end = get_end(move_result);
+            (void)get_end(move_result);
         } else {
             auto copy_result = std::uninitialized_copy_n(data_.GetAddress(), size_, new_begin);
             auto get_end = [](auto res) -> T* {
-                if constexpr (std::is_pointer_v<decltype(res)>) {
+                if constexpr (std::is_pointer_v<decltype(res)>)
                     return res;
-                } else {
+                else
                     return res.second;
-                }
             };
-            new_end = get_end(copy_result);
+            (void)get_end(copy_result);
         }
         std::destroy_n(data_.GetAddress(), size_);
         data_.Swap(new_data);
+    }
+
+    // Метод Resize: изменяет размер вектора.
+    // Если новый размер больше, добавляются элементы по умолчанию,
+    // если меньше – лишние элементы уничтожаются.
+    void Resize(size_t new_size) {
+        if (new_size < size_) {
+            std::destroy_n(data_.GetAddress() + new_size, size_ - new_size);
+            size_ = new_size;
+        } else if (new_size > size_) {
+            if (new_size > Capacity()) {
+                Reserve(new_size);
+            }
+            T* begin = data_.GetAddress() + size_;
+            size_t count = new_size - size_;
+            try {
+                std::uninitialized_value_construct_n(begin, count);
+            } catch (...) {
+                std::destroy(begin, begin + count);
+                throw;
+            }
+            size_ = new_size;
+        }
+    }
+
+    // Вспомогательный шаблон для реализации PushBack.
+    // Реализация двух версий PushBack делегирует работу этому шаблону.
+    template<typename U>
+    void PushBackImpl(U&& value) {
+        if (size_ == Capacity()) {
+            size_t new_capacity = (Capacity() == 0 ? 1 : Capacity() * 2);
+            RawMemory<T> new_data(new_capacity);
+            T* new_begin = new_data.GetAddress();
+            // Перенос или копирование существующих элементов в новый буфер
+            if constexpr (std::is_nothrow_move_constructible_v<T> || !std::is_copy_constructible_v<T>) {
+                std::uninitialized_move_n(data_.GetAddress(), size_, new_begin);
+            } else {
+                std::uninitialized_copy_n(data_.GetAddress(), size_, new_begin);
+            }
+            T* new_elem_ptr = new_begin + size_;
+            try {
+                new (new_elem_ptr) T(std::forward<U>(value));
+            } catch(...) {
+                std::destroy_n(new_begin, size_);
+                throw;  // Никаких изменений состояния вектора!
+            }
+            // Если вставка успешна, уничтожаем старые элементы и обновляем буфер
+            std::destroy_n(data_.GetAddress(), size_);
+            data_.Swap(new_data);
+            ++size_;
+        } else {
+            new (data_.GetAddress() + size_) T(std::forward<U>(value));
+            ++size_;
+        }
+    }
+
+    // Метод PushBack (константная версия).
+    // Если переданный элемент находится в памяти вектора, сначала копируется во временный объект.
+    void PushBack(const T& value) {
+        if (data_.GetAddress() && (data_.GetAddress() <= &value && &value < data_.GetAddress() + size_)) {
+            T tmp = value;
+            PushBackImpl(tmp);
+        } else {
+            PushBackImpl(value);
+        }
+    }
+
+    // Метод PushBack (перемещающий).
+    // Если переданный объект находится в памяти вектора, сначала перемещается во временный объект.
+    void PushBack(T&& value) {
+        if (data_.GetAddress() && (data_.GetAddress() <= &value && &value < data_.GetAddress() + size_)) {
+            T tmp = std::move(value);
+            PushBackImpl(std::move(tmp));
+        } else {
+            PushBackImpl(std::move(value));
+        }
+    }
+
+    // Метод PopBack: удаляет последний элемент вектора.
+    // Предполагается, что вектор не пуст; сложность O(1), noexcept.
+    void PopBack() noexcept {
+        assert(size_ > 0);
+        --size_;
+        (data_.GetAddress() + size_)->~T();
     }
 
     size_t Size() const noexcept {
