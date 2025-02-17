@@ -118,6 +118,13 @@ public:
         }
     }
 
+    template <typename... Args>
+    void Emplace(Args&&... args) {
+        Reset(); // Уничтожаем предыдущее значение, если оно было
+        new (data_) T(std::forward<Args>(args)...); // Конструируем новое значение на месте
+        is_initialized_ = true;
+    }
+
 private:
     alignas(T) char data_[sizeof(T)];
     bool is_initialized_ = false;
