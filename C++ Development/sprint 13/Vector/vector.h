@@ -300,6 +300,43 @@ public:
         return data_[index];
     }
 
+    template <typename... Args>
+    T& EmplaceBack(Args&&... args) {
+        if (size_ == Capacity()) {
+            size_t new_capacity = (Capacity() == 0 ? 1 : Capacity() * 2);
+            RawMemory<T> new_data(new_capacity);
+            T* new_begin = new_data.GetAddress();
+
+            // Перенос или копирование уже сконструированных элементов
+            if constexpr (std::is_nothrow_move_constructible_v<T> || !std::is_copy_constructible_v<T>) {
+                std::uninitialized_move_n(data_.GetAddress(), size_, new_begin);
+            } else {
+                std::uninitialized_copy_n(data_.GetAddress(), size_, new_begin);
+            }
+            
+            T* new_elem_ptr = new_begin + size_;
+            // Попытка сконструировать новый элемент с помощью переданных аргументов
+            try {
+                new (new_elem_ptr) T(std::forward<Args>(args)...);
+            } catch (...) {
+                // Если конструктор выбросил исключение, разрушить уже перенесённые элементы
+                std::destroy_n(new_begin, size_);
+                throw;
+            }
+            // Если вставка прошла успешно, уничтожаем старые элементы
+            std::destroy_n(data_.GetAddress(), size_);
+            // Меняем внутренний буфер на новый
+            data_.Swap(new_data);
+            ++size_;
+            return data_[size_ - 1];
+        } else {
+            T* target = data_.GetAddress() + size_;
+            new (target) T(std::forward<Args>(args)...);
+            ++size_;
+            return data_[size_ - 1];
+        }
+    }
+
 private:
     size_t size_ = 0;
     RawMemory<T> data_;
