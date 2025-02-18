@@ -337,6 +337,115 @@ public:
         }
     }
 
+    using iterator = T*;
+    using const_iterator = const T*;
+
+    iterator begin() noexcept {
+        return data_.GetAddress();
+    }
+    iterator end() noexcept {
+        return data_.GetAddress() + size_;
+    }
+    const_iterator begin() const noexcept {
+        return data_.GetAddress();
+    }
+    const_iterator end() const noexcept {
+        return data_.GetAddress() + size_;
+    }
+    const_iterator cbegin() const noexcept {
+        return data_.GetAddress();
+    }
+    const_iterator cend() const noexcept {
+        return data_.GetAddress() + size_;
+    }
+
+    // Метод Emplace: вставляет элемент по указанной позиции с использованием perfect forwarding.
+    template <typename... Args>
+    iterator Emplace(const_iterator pos, Args&&... args) {
+        // Вычисляем индекс позиции вставки.
+        size_t index = pos - data_.GetAddress();
+        assert(index <= size_ && "Invalid iterator");
+
+        // Если вставка в конец, делегируем EmplaceBack.
+        if (index == size_) {
+            return &EmplaceBack(std::forward<Args>(args)...);
+        }
+
+        // *** Вставка без реаллокации ***
+        if (size_ < Capacity()) {
+            T* pos_ptr = data_.GetAddress() + index;
+            // Сначала создаём временный объект из переданных аргументов.
+            T tmp(std::forward<Args>(args)...);
+            // Сдвигаем элементы: перемещаем последний элемент в новый неинициализированный слот.
+            new (data_.GetAddress() + size_) T(std::move(data_[size_ - 1]));
+            // Сдвигаем оставшиеся элементы вправо.
+            for (size_t i = size_ - 1; i > index; --i) {
+                data_[i] = std::move(data_[i - 1]);
+            }
+            // Теперь выполняем move‑присваивание временного объекта в позицию вставки.
+            *pos_ptr = std::move(tmp);
+            ++size_;
+            return pos_ptr;
+        } else {
+            // *** Вставка с реаллокацией ***
+            size_t new_capacity = (Capacity() == 0 ? 1 : Capacity() * 2);
+            RawMemory<T> new_data(new_capacity);
+            T* new_begin = new_data.GetAddress();
+            size_t i = 0;
+            try {
+                // Перемещаем (или копируем, если перемещение не noexcept) элементы до позиции вставки.
+                for (; i < index; ++i) {
+                    new (new_begin + i) T(std::move_if_noexcept(data_[i]));
+                }
+                // Конструируем новый элемент в позиции index.
+                new (new_begin + index) T(std::forward<Args>(args)...);
+                // Перемещаем оставшиеся элементы.
+                for (; i < size_; ++i) {
+                    new (new_begin + i + 1) T(std::move_if_noexcept(data_[i]));
+                }
+            } catch (...) {
+                // При исключении разрушаем уже сконструированные элементы.
+                for (size_t j = 0; j < i; ++j) {
+                    new_begin[j].~T();
+                }
+                throw;
+            }
+            // Разрушаем старые элементы и обновляем буфер.
+            std::destroy_n(data_.GetAddress(), size_);
+            data_.Swap(new_data);
+            ++size_;
+            return data_.GetAddress() + index;
+        }
+    }
+
+    // Методы Insert делегируют работу методу Emplace.
+    iterator Insert(const_iterator pos, const T& value) {
+        // Если переданный объект находится в векторе, сначала создаём временную копию.
+        if (data_.GetAddress() && (data_.GetAddress() <= &value && &value < data_.GetAddress() + size_)) {
+            T tmp = value;
+            return Emplace(pos, std::move(tmp));
+        } else {
+            return Emplace(pos, value);
+        }
+    }
+    iterator Insert(const_iterator pos, T&& value) {
+        // Если переданный объект находится в векторе, сначала перемещаем его во временный объект.
+        if (data_.GetAddress() && (data_.GetAddress() <= &value && &value < data_.GetAddress() + size_)) {
+            T tmp = std::move(value);
+            return Emplace(pos, std::move(tmp));
+        } else {
+            return Emplace(pos, std::move(value));
+        }
+    }
+    
+    // Метод Erase: удаляет элемент по указанной позиции.
+    iterator Erase(const_iterator pos) noexcept(noexcept(std::declval<T&>() = std::move(std::declval<T&>()))) {
+        T* pos_ptr = const_cast<T*>(pos);
+        std::move(pos_ptr + 1, data_.GetAddress() + size_, pos_ptr);
+        PopBack();
+        return pos_ptr;
+    }
+
 private:
     size_t size_ = 0;
     RawMemory<T> data_;
