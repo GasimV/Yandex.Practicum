@@ -6,7 +6,7 @@
 
 class BadOptionalAccess : public std::exception {
 public:
-    using exception::exception;
+    using std::exception::exception;
 
     virtual const char* what() const noexcept override {
         return "Bad optional access";
@@ -85,30 +85,52 @@ public:
         return is_initialized_;
     }
 
-    T& operator*() {
+    // operator* для lvalue-ссылок
+    T& operator*() & {
         return *reinterpret_cast<T*>(data_);
     }
-    const T& operator*() const {
+    const T& operator*() const & {
         return *reinterpret_cast<const T*>(data_);
     }
-    T* operator->() {
+    // operator* для rvalue-ссылок
+    T&& operator*() && {
+        return std::move(*reinterpret_cast<T*>(data_));
+    }
+
+    // operator-> для lvalue-ссылок
+    T* operator->() & {
         return reinterpret_cast<T*>(data_);
     }
-    const T* operator->() const {
+    const T* operator->() const & {
+        return reinterpret_cast<const T*>(data_);
+    }
+    // operator-> для rvalue-ссылок
+    T* operator->() && {
+        return reinterpret_cast<T*>(data_);
+    }
+    const T* operator->() const && {
         return reinterpret_cast<const T*>(data_);
     }
 
-    T& Value() {
+    // Value для lvalue-ссылок
+    T& Value() & {
         if (!is_initialized_) {
             throw BadOptionalAccess();
         }
         return **this;
     }
-    const T& Value() const {
+    const T& Value() const & {
         if (!is_initialized_) {
             throw BadOptionalAccess();
         }
         return **this;
+    }
+    // Value для rvalue-ссылок
+    T&& Value() && {
+        if (!is_initialized_) {
+            throw BadOptionalAccess();
+        }
+        return std::move(*reinterpret_cast<T*>(data_));
     }
 
     void Reset() {
