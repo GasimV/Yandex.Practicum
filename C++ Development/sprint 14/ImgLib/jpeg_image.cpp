@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <setjmp.h>
 #include <jpeglib.h>
+#include <iostream>
 
 using namespace std;
 
@@ -78,6 +79,70 @@ bool SaveJPEG(const Path& file, const Image& image) {
     fclose(outfile);
 
     return true;
+}
+
+// Функция загрузки JPEG
+Image LoadJPEG(const Path& file) {
+    jpeg_decompress_struct cinfo;
+    my_error_mgr jerr;
+    FILE* infile = nullptr;
+
+#ifdef _MSC_VER
+    infile = _wfopen(file.wstring().c_str(), L"rb");
+#else
+    infile = fopen(file.string().c_str(), "rb");
+#endif
+
+    if (!infile) {
+        cerr << "Error: Cannot open file " << file << endl;
+        return {};
+    }
+
+    cinfo.err = jpeg_std_error(&jerr.pub);
+    jerr.pub.error_exit = my_error_exit;
+
+    if (setjmp(jerr.setjmp_buffer)) {
+        jpeg_destroy_decompress(&cinfo);
+        fclose(infile);
+        return {};
+    }
+
+    jpeg_create_decompress(&cinfo);
+    jpeg_stdio_src(&cinfo, infile);
+    jpeg_read_header(&cinfo, TRUE);
+    jpeg_start_decompress(&cinfo);
+
+    int width = cinfo.output_width;
+    int height = cinfo.output_height;
+    int channels = cinfo.output_components;
+
+    if (channels != 3) {
+        cerr << "Error: Unsupported JPEG format (only RGB supported)" << endl;
+        jpeg_destroy_decompress(&cinfo);
+        fclose(infile);
+        return {};
+    }
+
+    Image image(width, height, Color::Black());
+    vector<JSAMPLE> buffer(width * channels);
+    while (cinfo.output_scanline < height) {
+        JSAMPROW row_pointer = buffer.data();
+        jpeg_read_scanlines(&cinfo, &row_pointer, 1);
+
+        Color* line = image.GetLine(cinfo.output_scanline - 1);
+        for (int x = 0; x < width; ++x) {
+            line[x] = {static_cast<byte>(buffer[x * 3]),
+                       static_cast<byte>(buffer[x * 3 + 1]),
+                       static_cast<byte>(buffer[x * 3 + 2]),
+                       byte{255}};
+        }
+    }
+
+    jpeg_finish_decompress(&cinfo);
+    jpeg_destroy_decompress(&cinfo);
+    fclose(infile);
+
+    return image;
 }
 
 } // namespace img_lib
