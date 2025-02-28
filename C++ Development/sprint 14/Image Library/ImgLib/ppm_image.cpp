@@ -50,7 +50,7 @@ Image LoadPPM(const Path& file) {
         return {};
     }
 
-    // пропускаем один байт — это конец строки
+    // пропускаем один байт - это конец строки
     const char next = ifs.get();
     if (next != '\n') {
         return {};
