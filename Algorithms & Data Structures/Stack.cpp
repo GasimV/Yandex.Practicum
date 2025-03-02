@@ -26,6 +26,8 @@ public:
     void Push(int x) {
         if (top == MAX_SIZE) {
             cout << "Error: Overflow" << endl;
+            // Alternatively, it can be written:
+            // throw std::overflow_error("Stack overflow");
             return;
         } else {
             top = top + 1;
@@ -37,6 +39,8 @@ public:
     int Pop() {
         if (StackEmpty()) {
             cout << "Error: Underflow" << endl;
+            // Alternatively, it can be written:
+            // throw std::underflow_error("Stack underflow");
             return -1;  // Return a sentinel value for underflow
         } else {
             top = top - 1;
