@@ -86,3 +86,49 @@ int main() {
 
     return 0;
 }
+
+//If You Want to Use Exceptions Instead of Printing Errors
+
+// void Push(int x) {
+//     if (top == MAX_SIZE) {
+//         throw std::overflow_error("Stack overflow");
+//     }
+//     S[++top] = x;
+// }
+
+// int Pop() {
+//     if (StackEmpty()) {
+//         throw std::underflow_error("Stack underflow");
+//     }
+//     return S[top--];
+// }
+
+// int main() {
+//     Stack stack;
+
+//     try {
+//         stack.Push(15);
+//         stack.Push(6);
+//         stack.Push(2);
+//         stack.Push(9);
+
+//         cout << "Original Stack: ";
+//         stack.PrintStack();
+
+//         stack.Push(17);
+//         stack.Push(3);
+//         cout << "Stack after Push operations: ";
+//         stack.PrintStack();
+
+//         stack.Pop();
+//         cout << "Stack after Pop operation: ";
+//         stack.PrintStack();
+
+//     } catch (const std::overflow_error &e) {
+//         cout << "Exception caught: " << e.what() << endl;
+//     } catch (const std::underflow_error &e) {
+//         cout << "Exception caught: " << e.what() << endl;
+//     }
+
+//     return 0;
+// }
