@@ -6,12 +6,13 @@ using namespace std;
 
 class OpenAddressingHashTable {
 private:
-    int* table; // Dynamic array for storing keys
-    int TABLE_SIZE; // Hash table size
+    int* table;      // Dynamic array for storing keys
+    int  TABLE_SIZE; // Hash table size
 
     // Hash function with linear probing
-    int hashFunction(int key, int i) {
-        return (key + i) % TABLE_SIZE; // h(k, i) = (h'(k) + i) % m
+    // h(k,i) = (k + i) % TABLE_SIZE
+    int hashFunction(int key, int i) const {
+        return (key + i) % TABLE_SIZE;
     }
 
 public:
@@ -27,75 +28,102 @@ public:
     // Hash-Insert(T, k)
     int HashInsert(int key) {
         int i = 0;
-        int q;
-        do {
-            q = hashFunction(key, i);
+        while (i < TABLE_SIZE) {
+            int q = hashFunction(key, i);
             if (table[q] == NIL) {
                 table[q] = key;
                 return q;
             }
             i++;
-        } while (i < TABLE_SIZE);
-
+        }
         cout << "Error: Hash table overflow!" << endl;
         return -1; // Indicating failure
     }
 
     // Hash-Search(T, k)
-    int HashSearch(int key) {
+    int HashSearch(int key) const {
         int i = 0;
-        int q;
-        do {
-            q = hashFunction(key, i);
+        while (i < TABLE_SIZE) {
+            int q = hashFunction(key, i);
             if (table[q] == key) {
-                return q; // Key found at index q
+                return q; // Key found
             }
             if (table[q] == NIL) {
-                return -1; // Key not present
+                return -1; // Key not present (hit empty slot)
             }
             i++;
-        } while (i < TABLE_SIZE);
-
-        return -1; // Key not found
+        }
+        return -1; // Key not found after full scan
     }
 
-    // Hash-Delete(T, q)
+    // Hash-Delete(T, key)
     void HashDelete(int key) {
+        // First find the slot where 'key' resides
         int q = HashSearch(key);
         if (q == -1) {
             cout << "Error: Key " << key << " not found in hash table!" << endl;
             return;
         }
-    
-        // Step 1: Empty the slot
-        table[q] = NIL;
-    
-        // Step 2: Shift keys to maintain search correctness
-        int q_prime = q;
+
+        // According to CLRS pseudocode:
+        //   LINEAR-PROBING-HASH-DELETE(T,q):
+        //   1  while TRUE
+        //   2    T[q] = NIL
+        //   3    q' = q
+        //   4    repeat
+        //   5        q' = (q' + 1) mod m
+        //   6        k' = T[q']
+        //   7        if k' == NIL
+        //   8            return
+        //   9    until g(k',q) < g(k',q')
+        //  10    T[q] = k'
+        //  11    q = q'
+        
         while (true) {
-            q_prime = (q_prime + 1) % TABLE_SIZE; // Move to next slot in linear probing
-            int k_prime = table[q_prime];
-    
-            if (k_prime == NIL) {
-                return; // Stop when an empty slot is found
+            // Empty the slot at index q
+            table[q] = NIL;
+
+            // Start scanning from q
+            int q_prime = q;
+
+            // Keep moving forward until you find a key that should move back
+            while (true) {
+                // Move to the next slot in linear probing
+                q_prime = (q_prime + 1) % TABLE_SIZE;
+
+                int k_prime = table[q_prime];
+                // If we hit an empty slot, we're done
+                if (k_prime == NIL) {
+                    return;
+                }
+
+                // Otherwise, compute how far k_prime has probed:
+                // h(k_prime) is simply (k_prime % TABLE_SIZE) for i=0 in this code
+                int basePos  = k_prime % TABLE_SIZE;
+
+                // g(k_prime, q)     = (q - basePos) mod TABLE_SIZE
+                // g(k_prime, q_prime) = (q_prime - basePos) mod TABLE_SIZE
+                int g_q      = (q - basePos + TABLE_SIZE) % TABLE_SIZE;
+                int g_qPrime = (q_prime - basePos + TABLE_SIZE) % TABLE_SIZE;
+
+                // If k_prime wants to be "closer to" q (fewer probes) than q_prime
+                // i.e. g(k_prime, q) < g(k_prime, q_prime)
+                // move it back into slot q.
+                if (g_q < g_qPrime) {
+                    table[q] = k_prime;   // Move k_prime into the freed slot
+                    table[q_prime] = NIL; // That frees up slot q_prime
+                    q = q_prime;          // Now slot q_prime is the newly freed slot
+                    break;                // Break out of inner loop; continue outer
+                }
+                // Otherwise, keep scanning forward until we find a key that does belong
+                // or we find an empty slot.
             }
-    
-            // Compute original hash location of k_prime
-            int originalIndex = k_prime % TABLE_SIZE;
-    
-            // If k_prime originally belonged before q_prime but was placed later due to probing,
-            // it should be moved back into the now-empty slot q.
-            if ((q_prime > q && (originalIndex <= q || originalIndex > q_prime)) ||
-                (q_prime < q && (originalIndex <= q && originalIndex > q_prime))) {
-                table[q] = k_prime; // Move key into the freed slot
-                table[q_prime] = NIL; // Free up q_prime
-                q = q_prime; // Continue checking the next slot
-            }
+            // We re-empty slot q (the newly freed slot) and repeat the process
         }
     }
 
     // Display Hash Table
-    void PrintTable() {
+    void PrintTable() const {
         cout << "Hash Table: " << endl;
         for (int i = 0; i < TABLE_SIZE; i++) {
             if (table[i] == NIL) {
@@ -120,7 +148,7 @@ int main() {
 
     OpenAddressingHashTable hashTable(tableSize);
 
-    // Insert elements
+    // Insert some elements
     hashTable.HashInsert(74);
     hashTable.HashInsert(43);
     hashTable.HashInsert(93);
