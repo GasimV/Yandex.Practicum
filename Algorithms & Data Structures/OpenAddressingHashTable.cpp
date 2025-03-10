@@ -14,11 +14,6 @@ private:
         return (key + i) % TABLE_SIZE; // h(k, i) = (h'(k) + i) % m
     }
 
-    // Helper function to determine if a key should be moved
-    bool shouldMove(int k_prime, int q_prime) {
-        return ((k_prime % TABLE_SIZE) != q_prime);
-    }
-
 public:
     // Constructor - Initializes table with given size
     OpenAddressingHashTable(int size) {
@@ -71,21 +66,27 @@ public:
             cout << "Error: Key " << key << " not found in hash table!" << endl;
             return;
         }
-
+    
         // Step 1: Empty the slot
         table[q] = NIL;
-
+    
+        // Step 2: Shift keys to maintain search correctness
         int q_prime = q;
         while (true) {
             q_prime = (q_prime + 1) % TABLE_SIZE; // Move to next slot in linear probing
             int k_prime = table[q_prime];
-
+    
             if (k_prime == NIL) {
                 return; // Stop when an empty slot is found
             }
-
-            // Step 2: Check if key k_prime should be moved to q
-            if (shouldMove(k_prime, q_prime)) {
+    
+            // Compute original hash location of k_prime
+            int originalIndex = k_prime % TABLE_SIZE;
+    
+            // If k_prime originally belonged before q_prime but was placed later due to probing,
+            // it should be moved back into the now-empty slot q.
+            if ((q_prime > q && (originalIndex <= q || originalIndex > q_prime)) ||
+                (q_prime < q && (originalIndex <= q && originalIndex > q_prime))) {
                 table[q] = k_prime; // Move key into the freed slot
                 table[q_prime] = NIL; // Free up q_prime
                 q = q_prime; // Continue checking the next slot
