@@ -37,6 +37,16 @@ public:
         return out.str();
     }
 
+    std::vector<Position> GetReferencedCells() const override {
+        std::vector<Position> refs;
+        for (const auto& pos : ast_.GetCells()) {
+            refs.push_back(pos);
+        }
+        std::sort(refs.begin(), refs.end());
+        refs.erase(std::unique(refs.begin(), refs.end()), refs.end());
+        return refs;
+    }
+
 private:
     FormulaAST ast_;
 };

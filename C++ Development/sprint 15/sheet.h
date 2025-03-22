@@ -6,6 +6,7 @@
 #include <functional>
 #include <unordered_map>
 #include <optional>
+#include <unordered_set>
 
 class Sheet : public SheetInterface {
 public:
@@ -29,4 +30,11 @@ private:
     };
 
     std::unordered_map<Position, std::unique_ptr<Cell>, PositionHasher> cells_;
+
+    // Граф зависимостей: для каждой ячейки множество ячеек, на которые она ссылается
+    std::unordered_map<Position, std::unordered_set<Position, PositionHasher>, PositionHasher> dependencies_;
+
+    bool DetectCycle(const Position& start) const;
+    bool DetectCycleHelper(const Position& current, const Position& start,
+                           std::unordered_set<Position, PositionHasher>& visited) const;
 };

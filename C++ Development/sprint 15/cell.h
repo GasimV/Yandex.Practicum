@@ -5,8 +5,11 @@
 
 #include <functional>
 #include <unordered_set>
+#include <memory>
+#include <vector>
+#include <string>
 
-class Sheet;
+class Sheet; // предварительное объявление
 
 class Cell : public CellInterface {
 public:
@@ -29,7 +32,5 @@ private:
     class FormulaImpl;
 
     std::unique_ptr<Impl> impl_;
-
-    // Добавьте поля и методы для связи с таблицей, проверки циклических 
-    // зависимостей, графа зависимостей и т.д.
-}
+    Sheet& sheet_;
+};
