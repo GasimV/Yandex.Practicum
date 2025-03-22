@@ -12,9 +12,13 @@ class ParsingError : public std::runtime_error {
     using std::runtime_error::runtime_error;
 };
 
+namespace ASTImpl {
+    class Expr;
+}
+
 class FormulaAST {
 public:
-    explicit FormulaAST(std::unique_ptr<class ASTImpl::Expr> root_expr,
+    explicit FormulaAST(std::unique_ptr<ASTImpl::Expr> root_expr,
                         std::forward_list<Position> cells);
     FormulaAST(FormulaAST&&) = default;
     FormulaAST& operator=(FormulaAST&&) = default;
@@ -29,7 +33,7 @@ public:
     const std::forward_list<Position>& GetCells() const { return cells_; }
 
 private:
-    std::unique_ptr<class ASTImpl::Expr> root_expr_;
+    std::unique_ptr<ASTImpl::Expr> root_expr_;
     std::forward_list<Position> cells_;
 };
 

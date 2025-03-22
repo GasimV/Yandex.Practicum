@@ -159,7 +159,7 @@ public:
                 break;
             case Divide:
                 if (right == 0) {
-                    throw FormulaError("ARITHM");
+                    throw FormulaError(FormulaError::Category::Arithmetic);;
                 }
                 result = left / right;
                 break;
@@ -168,7 +168,7 @@ public:
         }
         
         if (!std::isfinite(result)) {
-            throw FormulaError("ARITHM");
+            throw FormulaError(FormulaError::Category::Arithmetic);
         }
         return result;
     }
@@ -215,7 +215,7 @@ public:
         }
         
         if (!std::isfinite(value)) {
-            throw FormulaError("ARITHM");
+            throw FormulaError(FormulaError::Category::Arithmetic);
         }
         return value;
     }
