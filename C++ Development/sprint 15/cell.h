@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include <algorithm>
 
 class Sheet; // предварительное объявление
 
@@ -30,7 +31,7 @@ private:
     class EmptyImpl;
     class TextImpl;
     class FormulaImpl;
-
-    std::unique_ptr<Impl> impl_;
+    
     Sheet& sheet_;
+    std::unique_ptr<Impl> impl_;
 };
