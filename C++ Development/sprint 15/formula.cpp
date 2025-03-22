@@ -23,14 +23,14 @@ public:
         throw FormulaException(e.what());
     }
 
-    Value Evaluate() const override {
+    Value Evaluate(const SheetInterface& sheet) const override {
         try {
-            return ast_.Execute();
+            return ast_.Execute(sheet);
         } catch (const FormulaError& e) {
             return e;
         }
     }
-
+    
     std::string GetExpression() const override {
         std::ostringstream out;
         ast_.PrintFormula(out);
